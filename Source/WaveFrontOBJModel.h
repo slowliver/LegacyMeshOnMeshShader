@@ -98,29 +98,7 @@ public:
     HRESULT LoadFromFile(const wchar_t* filename);
     HRESULT UploadGpuResources(ID3D12Device* device, ID3D12CommandQueue* cmdQueue, ID3D12CommandAllocator* cmdAlloc, ID3D12GraphicsCommandList* cmdList);
 
-    uint32_t GetMeshCount() const { return static_cast<uint32_t>(m_meshes.size()); }
-    const LegacyMesh& GetMesh(uint32_t i) const { return m_meshes[i]; }
-
-    const DirectX::BoundingSphere& GetBoundingSphere() const { return m_boundingSphere; }
-
-    // Iterator interface
-    auto begin() { return m_meshes.begin(); }
-    auto end() { return m_meshes.end(); }
-
 private:
-#if 0
-	template <class T>
-	requires std::is_integral_v<T>
-#endif
-
-private:
-    std::vector<LegacyMesh>                      m_meshes;
-    DirectX::BoundingSphere                m_boundingSphere;
-
-    std::vector<uint8_t>                   m_buffer;
-
-
-
 	static constexpr D3D12_INPUT_ELEMENT_DESC k_inputElements[] =
 	{
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,  0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
@@ -134,5 +112,12 @@ private:
 
 	std::unique_ptr<std::byte[]> m_indices = nullptr;
 	uint32_t m_indexCount = 0;
-	DXGI_FORMAT m_indexBufferFormat = DXGI_FORMAT_R16_UINT;
+	DXGI_FORMAT m_indexBufferFormat = DXGI_FORMAT_R32_UINT;
+
+	struct GPUResources
+	{
+		Microsoft::WRL::ComPtr<ID3D12Resource> m_vertexBuffer = nullptr;
+		Microsoft::WRL::ComPtr<ID3D12Resource> m_indexBuffer = nullptr;
+	} m_gpuResources;
+
 };
