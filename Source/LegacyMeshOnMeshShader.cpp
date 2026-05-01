@@ -12,12 +12,12 @@
 #include "stdafx.h"
 #include "LegacyMeshOnMeshShader.h"
 
-const wchar_t* D3D12MeshletRender::c_meshFilename = L"..\\Assets\\Dragon_LOD0.bin";
+const wchar_t* D3D12MeshletRender::c_meshFilename = L"Bunny.obj";
 
 const wchar_t* D3D12MeshletRender::c_meshShaderFilename = L"MeshletMS.cso";
 const wchar_t* D3D12MeshletRender::c_pixelShaderFilename = L"MeshletPS.cso";
 
-extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 618; }
+extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 619; }
 extern "C" { __declspec(dllexport) extern const char* D3D12SDKPath = ".\\D3D12\\"; }
 
 D3D12MeshletRender::D3D12MeshletRender(UINT width, UINT height, std::wstring name)
@@ -418,11 +418,13 @@ void D3D12MeshletRender::PopulateCommandList()
 		m_commandList->SetGraphicsRootShaderResourceView(4, mesh.UniqueVertexIndexResource->GetGPUVirtualAddress());
 		m_commandList->SetGraphicsRootShaderResourceView(5, mesh.PrimitiveIndexResource->GetGPUVirtualAddress());
 
+#if 0
 		for (auto& subset : mesh.MeshletSubsets)
 		{
 			m_commandList->SetGraphicsRoot32BitConstant(1, subset.Offset, 1);
 			m_commandList->DispatchMesh(subset.Count, 1, 1);
 		}
+#endif
 	}
 
 	// Indicate that the back buffer will now be used to present.

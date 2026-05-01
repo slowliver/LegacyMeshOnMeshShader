@@ -12,7 +12,7 @@
 #pragma once
 
 #include "DXSample.h"
-#include "Model.h"
+#include "WaveFrontOBJModel.h"
 #include "StepTimer.h"
 #include "SimpleCamera.h"
 
@@ -71,7 +71,7 @@ private:
 
 	StepTimer m_timer;
 	SimpleCamera m_camera;
-	Model m_model;
+	WaveFrontOBJModel m_model;
 
 	// Synchronization objects.
 	UINT m_frameIndex;

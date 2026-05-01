@@ -44,6 +44,9 @@
     <ClInclude Include="Resource.h">
       <Filter>Source</Filter>
     </ClInclude>
+    <ClInclude Include="WaveFrontOBJModel.h">
+      <Filter>Source</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="LegacyMeshOnMeshShader.cpp">
@@ -67,6 +70,9 @@
     <ClCompile Include="Main.cpp">
       <Filter>Source</Filter>
     </ClCompile>
+    <ClCompile Include="WaveFrontOBJModel.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="LegacyMeshOnMeshShader.rc">
@@ -83,5 +89,18 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="MeshletPS.hlsl">
+      <Filter>リソース ファイル</Filter>
+    </CustomBuild>
+    <CustomBuild Include="MeshletMS.hlsl">
+      <Filter>リソース ファイル</Filter>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <CopyFileToFolders Include="bunny.obj">
+      <Filter>リソース ファイル</Filter>
+    </CopyFileToFolders>
   </ItemGroup>
 </Project>

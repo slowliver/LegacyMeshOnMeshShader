@@ -30,44 +30,7 @@ struct Attribute
     uint32_t Offset;
 };
 
-struct Subset
-{
-    uint32_t Offset;
-    uint32_t Count;
-};
-
-struct MeshInfo
-{
-    uint32_t IndexSize;
-    uint32_t MeshletCount;
-
-    uint32_t LastMeshletVertCount;
-    uint32_t LastMeshletPrimCount;
-};
-
-struct Meshlet
-{
-    uint32_t VertCount;
-    uint32_t VertOffset;
-    uint32_t PrimCount;
-    uint32_t PrimOffset;
-};
-
-struct PackedTriangle
-{
-    uint32_t i0 : 10;
-    uint32_t i1 : 10;
-    uint32_t i2 : 10;
-};
-
-struct CullData
-{
-    DirectX::XMFLOAT4 BoundingSphere; // xyz = center, w = radius
-    uint8_t           NormalCone[4];  // xyz = axis, w = -cos(a + 90)
-    float             ApexOffset;     // apex = center - axis * offset
-};
-
-struct Mesh
+struct LegacyMesh
 {
     D3D12_INPUT_ELEMENT_DESC   LayoutElems[Attribute::Count];
     D3D12_INPUT_LAYOUT_DESC    LayoutDesc;
@@ -77,16 +40,9 @@ struct Mesh
     uint32_t                   VertexCount;
     DirectX::BoundingSphere    BoundingSphere;
 
-    Span<Subset>               IndexSubsets;
     Span<uint8_t>              Indices;
     uint32_t                   IndexSize;
     uint32_t                   IndexCount;
-
-    Span<Subset>               MeshletSubsets;
-    Span<Meshlet>              Meshlets;
-    Span<uint8_t>              UniqueVertexIndices;
-    Span<PackedTriangle>       PrimitiveIndices;
-    Span<CullData>             CullingData;
 
     // D3D resource references
     std::vector<D3D12_VERTEX_BUFFER_VIEW>  VBViews;
@@ -100,6 +56,7 @@ struct Mesh
     Microsoft::WRL::ComPtr<ID3D12Resource>              CullDataResource;
     Microsoft::WRL::ComPtr<ID3D12Resource>              MeshInfoResource;
 
+#if 0
     // Calculates the number of instances of the last meshlet which can be packed into a single threadgroup.
     uint32_t GetLastMeshletPackCount(uint32_t subsetIndex, uint32_t maxGroupVerts, uint32_t maxGroupPrims) 
     { 
@@ -109,7 +66,7 @@ struct Mesh
         auto& subset = MeshletSubsets[subsetIndex];
         auto& meshlet = Meshlets[subset.Offset + subset.Count - 1];
 
-        return std::min(maxGroupVerts / meshlet.VertCount, maxGroupPrims / meshlet.PrimCount);
+        return min(maxGroupVerts / meshlet.VertCount, maxGroupPrims / meshlet.PrimCount);
     }
 
     void GetPrimitive(uint32_t index, uint32_t& i0, uint32_t& i1, uint32_t& i2) const
@@ -132,16 +89,17 @@ struct Mesh
             return *reinterpret_cast<const uint16_t*>(addr);
         }
     }
+#endif
 };
 
-class Model
+class WaveFrontOBJModel
 {
 public:
     HRESULT LoadFromFile(const wchar_t* filename);
     HRESULT UploadGpuResources(ID3D12Device* device, ID3D12CommandQueue* cmdQueue, ID3D12CommandAllocator* cmdAlloc, ID3D12GraphicsCommandList* cmdList);
 
     uint32_t GetMeshCount() const { return static_cast<uint32_t>(m_meshes.size()); }
-    const Mesh& GetMesh(uint32_t i) const { return m_meshes[i]; }
+    const LegacyMesh& GetMesh(uint32_t i) const { return m_meshes[i]; }
 
     const DirectX::BoundingSphere& GetBoundingSphere() const { return m_boundingSphere; }
 
@@ -150,8 +108,31 @@ public:
     auto end() { return m_meshes.end(); }
 
 private:
-    std::vector<Mesh>                      m_meshes;
+#if 0
+	template <class T>
+	requires std::is_integral_v<T>
+#endif
+
+private:
+    std::vector<LegacyMesh>                      m_meshes;
     DirectX::BoundingSphere                m_boundingSphere;
 
     std::vector<uint8_t>                   m_buffer;
+
+
+
+	static constexpr D3D12_INPUT_ELEMENT_DESC k_inputElements[] =
+	{
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,  0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,    0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+	};
+	static constexpr D3D12_INPUT_LAYOUT_DESC k_inputLayout = { k_inputElements, std::extent_v<decltype(k_inputElements)> };
+
+	std::unique_ptr<std::byte[]> m_vertices = nullptr;
+	uint32_t m_vertexCount = 0;
+
+	std::unique_ptr<std::byte[]> m_indices = nullptr;
+	uint32_t m_indexCount = 0;
+	DXGI_FORMAT m_indexBufferFormat = DXGI_FORMAT_R16_UINT;
 };
