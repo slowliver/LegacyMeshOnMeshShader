@@ -108,7 +108,6 @@ HRESULT WaveFrontOBJModel::LoadFromFile(const wchar_t* filename)
 
 HRESULT WaveFrontOBJModel::UploadGpuResources(ID3D12Device* device, ID3D12CommandQueue* cmdQueue, ID3D12CommandAllocator* cmdAlloc, ID3D12GraphicsCommandList* cmdList)
 {
-#if 1
 	const auto vertexBufferSize = m_vertexCount * sizeof(WaveFrontReaderOBJReader::Vertex);
 	const auto indexBufferSize = m_indexCount * (m_indexBufferFormat == DXGI_FORMAT_R16_UINT ? sizeof(uint16_t) : sizeof(uint32_t));
 	auto vertexBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(vertexBufferSize);
@@ -119,8 +118,8 @@ HRESULT WaveFrontOBJModel::UploadGpuResources(ID3D12Device* device, ID3D12Comman
 	ThrowIfFailed(device->CreateCommittedResource(&defaultHeap, D3D12_HEAP_FLAG_NONE, &indexBufferDesc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&m_gpuResources.m_indexBuffer)));
 
 	// Create upload resources
-	ComPtr<ID3D12Resource> vertexBufferUpload;
-	ComPtr<ID3D12Resource> indexBufferUpload;
+	ComPtr<ID3D12Resource> vertexBufferUpload = nullptr;
+	ComPtr<ID3D12Resource> indexBufferUpload = nullptr;
 
 	auto uploadHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
 	ThrowIfFailed(device->CreateCommittedResource(&uploadHeap, D3D12_HEAP_FLAG_NONE, &vertexBufferDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&vertexBufferUpload)));
@@ -144,55 +143,35 @@ HRESULT WaveFrontOBJModel::UploadGpuResources(ID3D12Device* device, ID3D12Comman
     // Populate our command list
     cmdList->Reset(cmdAlloc, nullptr);
 
-    for (uint32_t j = 0; j < m.Vertices.size(); ++j)
-    {
-        cmdList->CopyResource(m.VertexResources[j].Get(), vertexUploads[j].Get());
-        const auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(m.VertexResources[j].Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-        cmdList->ResourceBarrier(1, &barrier);
-    }
+	cmdList->CopyResource(m_gpuResources.m_vertexBuffer.Get(), vertexBufferUpload.Get());
+	cmdList->CopyResource(m_gpuResources.m_indexBuffer.Get(), indexBufferUpload.Get());
 
-    D3D12_RESOURCE_BARRIER postCopyBarriers[6];
-
-    cmdList->CopyResource(m.IndexResource.Get(), indexUpload.Get());
-    postCopyBarriers[0] = CD3DX12_RESOURCE_BARRIER::Transition(m.IndexResource.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-
-    cmdList->CopyResource(m.MeshletResource.Get(), meshletUpload.Get());
-    postCopyBarriers[1] = CD3DX12_RESOURCE_BARRIER::Transition(m.MeshletResource.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-
-    cmdList->CopyResource(m.CullDataResource.Get(), cullDataUpload.Get());
-    postCopyBarriers[2] = CD3DX12_RESOURCE_BARRIER::Transition(m.CullDataResource.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-
-    cmdList->CopyResource(m.UniqueVertexIndexResource.Get(), uniqueVertexIndexUpload.Get());
-    postCopyBarriers[3] = CD3DX12_RESOURCE_BARRIER::Transition(m.UniqueVertexIndexResource.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-
-    cmdList->CopyResource(m.PrimitiveIndexResource.Get(), primitiveIndexUpload.Get());
-    postCopyBarriers[4] = CD3DX12_RESOURCE_BARRIER::Transition(m.PrimitiveIndexResource.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-
-    cmdList->CopyResource(m.MeshInfoResource.Get(), meshInfoUpload.Get());
-    postCopyBarriers[5] = CD3DX12_RESOURCE_BARRIER::Transition(m.MeshInfoResource.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
-
-    cmdList->ResourceBarrier(ARRAYSIZE(postCopyBarriers), postCopyBarriers);
+	D3D12_RESOURCE_BARRIER barriers[] =
+	{
+		CD3DX12_RESOURCE_BARRIER::Transition(m_gpuResources.m_vertexBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER),
+		CD3DX12_RESOURCE_BARRIER::Transition(m_gpuResources.m_indexBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER)
+	};
+    cmdList->ResourceBarrier(std::extent_v<decltype(barriers)>, barriers);
 
     ThrowIfFailed(cmdList->Close());
 
-    ID3D12CommandList* ppCommandLists[] = { cmdList };
-    cmdQueue->ExecuteCommandLists(1, ppCommandLists);
+    ID3D12CommandList* commandLists[] = { cmdList };
+    cmdQueue->ExecuteCommandLists(1, commandLists);
 
     // Create our sync fence
-    ComPtr<ID3D12Fence> fence;
+    ComPtr<ID3D12Fence> fence = nullptr;
     ThrowIfFailed(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)));
 
-    cmdQueue->Signal(fence.Get(), 1);
+	ThrowIfFailed(cmdQueue->Signal(fence.Get(), 1));
 
     // Wait for GPU
     if (fence->GetCompletedValue() != 1)
     {
-        HANDLE event = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+        HANDLE event = CreateEventA(nullptr, FALSE, FALSE, nullptr);
         fence->SetEventOnCompletion(1, event);
-
         WaitForSingleObjectEx(event, INFINITE, false);
         CloseHandle(event);
     }
-#endif
+
     return S_OK;
 }

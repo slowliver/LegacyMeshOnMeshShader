@@ -280,23 +280,6 @@ void D3D12MeshletRender::LoadAssets()
 	m_model.LoadFromFile(c_meshFilename);
 	m_model.UploadGpuResources(m_device.Get(), m_commandQueue.Get(), m_commandAllocators[m_frameIndex].Get(), m_commandList.Get());
 
-#ifdef _DEBUG
-	// Mesh shader file expects a certain vertex layout; assert our mesh conforms to that layout.
-	const D3D12_INPUT_ELEMENT_DESC c_elementDescs[2] =
-	{
-		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 1 },
-		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 1 },
-	};
-
-	for (auto& mesh : m_model)
-	{
-		assert(mesh.LayoutDesc.NumElements == 2);
-
-		for (uint32_t i = 0; i < _countof(c_elementDescs); ++i)
-			assert(std::memcmp(&mesh.LayoutElems[i], &c_elementDescs[i], sizeof(D3D12_INPUT_ELEMENT_DESC)) == 0);
-	}
-#endif
-
 	// Create synchronization objects and wait until assets have been uploaded to the GPU.
 	{
 		ThrowIfFailed(m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence)));
@@ -410,22 +393,20 @@ void D3D12MeshletRender::PopulateCommandList()
 
 	m_commandList->SetGraphicsRootConstantBufferView(0, m_constantBuffer->GetGPUVirtualAddress() + sizeof(SceneConstantBuffer) * m_frameIndex);
 
-	for (auto& mesh : m_model)
-	{
-		m_commandList->SetGraphicsRoot32BitConstant(1, mesh.IndexSize, 0);
-		m_commandList->SetGraphicsRootShaderResourceView(2, mesh.VertexResources[0]->GetGPUVirtualAddress());
-		m_commandList->SetGraphicsRootShaderResourceView(3, mesh.MeshletResource->GetGPUVirtualAddress());
-		m_commandList->SetGraphicsRootShaderResourceView(4, mesh.UniqueVertexIndexResource->GetGPUVirtualAddress());
-		m_commandList->SetGraphicsRootShaderResourceView(5, mesh.PrimitiveIndexResource->GetGPUVirtualAddress());
-
 #if 0
-		for (auto& subset : mesh.MeshletSubsets)
-		{
-			m_commandList->SetGraphicsRoot32BitConstant(1, subset.Offset, 1);
-			m_commandList->DispatchMesh(subset.Count, 1, 1);
-		}
+	m_commandList->SetGraphicsRoot32BitConstant(1, mesh.IndexSize, 0);
+	m_commandList->SetGraphicsRootShaderResourceView(2, mesh.VertexResources[0]->GetGPUVirtualAddress());
+	m_commandList->SetGraphicsRootShaderResourceView(3, mesh.MeshletResource->GetGPUVirtualAddress());
+	m_commandList->SetGraphicsRootShaderResourceView(4, mesh.UniqueVertexIndexResource->GetGPUVirtualAddress());
+	m_commandList->SetGraphicsRootShaderResourceView(5, mesh.PrimitiveIndexResource->GetGPUVirtualAddress());
 #endif
+#if 0
+	for (auto& subset : mesh.MeshletSubsets)
+	{
+		m_commandList->SetGraphicsRoot32BitConstant(1, subset.Offset, 1);
+		m_commandList->DispatchMesh(subset.Count, 1, 1);
 	}
+#endif
 
 	// Indicate that the back buffer will now be used to present.
 	const auto toPresentBarrier = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
