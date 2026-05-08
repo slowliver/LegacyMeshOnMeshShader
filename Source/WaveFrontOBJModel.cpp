@@ -13,17 +13,11 @@
 
 #include "DXSampleHelper.h"
 
-#include <fstream>
-#include <unordered_set>
-
-#include <DirectXMesh.h>
 #include <WaveFrontReader.h>
 
 using namespace DX;
 using namespace DirectX;
 using namespace Microsoft::WRL;
-
-using WaveFrontReaderOBJReader = WaveFrontReader<uint32_t>;
 
 HRESULT WaveFrontOBJModel::LoadFromFile(const wchar_t* filename)
 {
@@ -34,10 +28,13 @@ HRESULT WaveFrontOBJModel::LoadFromFile(const wchar_t* filename)
 	}
 
 	m_vertexCount = mesh->vertices.size();
+	m_indexCount = mesh->indices.size();
+
+	assert(m_indexCount % 3 == 0);
 
 	auto reader = std::make_unique<VBReader>();
 
-	if (auto hr = reader->Initialize(k_inputLayout); FAILED(hr))
+	if (auto hr = reader->Initialize(GetInputLayout()); FAILED(hr))
 	{
 		return hr;
 	}
@@ -62,7 +59,7 @@ HRESULT WaveFrontOBJModel::LoadFromFile(const wchar_t* filename)
 		}
 
 		auto writer = std::make_unique<VBWriter>();
-		if (auto hr = writer->Initialize(k_inputLayout); FAILED(hr))
+		if (auto hr = writer->Initialize(GetInputLayout()); FAILED(hr))
 		{
 			return hr;
 		}
@@ -90,23 +87,31 @@ HRESULT WaveFrontOBJModel::LoadFromFile(const wchar_t* filename)
 		{
 			m_indices = std::make_unique<std::byte[]>(mesh->indices.size() * sizeof(uint16_t));
 			auto* buffer = reinterpret_cast<uint16_t*>(m_indices.get());
-			for (uint32_t i = 0; i < mesh->indices.size(); ++i)
+			for (uint32_t i = 0; i < mesh->indices.size() / 3; ++i)
 			{
-				buffer[i] = mesh->indices[i];
+				buffer[3 * i + 0] = mesh->indices[3 * i + 0];
+				buffer[3 * i + 1] = mesh->indices[3 * i + 2];
+				buffer[3 * i + 2] = mesh->indices[3 * i + 1];
 			}
 			m_indexBufferFormat = DXGI_FORMAT_R16_UINT;
 		}
 		else
 		{
 			m_indices = std::make_unique<std::byte[]>(mesh->indices.size() * sizeof(uint32_t));
-			memcpy(m_indices.get(), mesh->indices.data(), mesh->indices.size() * sizeof(uint32_t));
+			auto* buffer = reinterpret_cast<uint32_t*>(m_indices.get());
+			for (uint32_t i = 0; i < mesh->indices.size() / 3; ++i)
+			{
+				buffer[3 * i + 0] = mesh->indices[3 * i + 0];
+				buffer[3 * i + 1] = mesh->indices[3 * i + 2];
+				buffer[3 * i + 2] = mesh->indices[3 * i + 1];
+			}
 			m_indexBufferFormat = DXGI_FORMAT_R32_UINT;
 		}
 	}
 	return S_OK;
 }
 
-HRESULT WaveFrontOBJModel::UploadGpuResources(ID3D12Device* device, ID3D12CommandQueue* cmdQueue, ID3D12CommandAllocator* cmdAlloc, ID3D12GraphicsCommandList* cmdList)
+HRESULT WaveFrontOBJModel::UploadGPUResources(ID3D12Device* device, ID3D12CommandQueue* cmdQueue, ID3D12CommandAllocator* cmdAlloc, ID3D12GraphicsCommandList* cmdList)
 {
 	const auto vertexBufferSize = m_vertexCount * sizeof(WaveFrontReaderOBJReader::Vertex);
 	const auto indexBufferSize = m_indexCount * (m_indexBufferFormat == DXGI_FORMAT_R16_UINT ? sizeof(uint16_t) : sizeof(uint32_t));
@@ -114,16 +119,16 @@ HRESULT WaveFrontOBJModel::UploadGpuResources(ID3D12Device* device, ID3D12Comman
 	auto indexBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(indexBufferSize);
 
 	auto defaultHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
-	ThrowIfFailed(device->CreateCommittedResource(&defaultHeap, D3D12_HEAP_FLAG_NONE, &vertexBufferDesc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&m_gpuResources.m_vertexBuffer)));
-	ThrowIfFailed(device->CreateCommittedResource(&defaultHeap, D3D12_HEAP_FLAG_NONE, &indexBufferDesc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&m_gpuResources.m_indexBuffer)));
+	ThrowIfFailed(device->CreateCommittedResource(&defaultHeap, D3D12_HEAP_FLAG_CREATE_NOT_ZEROED, &vertexBufferDesc, D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(&m_vertexBuffer)));
+	ThrowIfFailed(device->CreateCommittedResource(&defaultHeap, D3D12_HEAP_FLAG_CREATE_NOT_ZEROED, &indexBufferDesc, D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(&m_indexBuffer)));
 
 	// Create upload resources
 	ComPtr<ID3D12Resource> vertexBufferUpload = nullptr;
 	ComPtr<ID3D12Resource> indexBufferUpload = nullptr;
 
 	auto uploadHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
-	ThrowIfFailed(device->CreateCommittedResource(&uploadHeap, D3D12_HEAP_FLAG_NONE, &vertexBufferDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&vertexBufferUpload)));
-	ThrowIfFailed(device->CreateCommittedResource(&uploadHeap, D3D12_HEAP_FLAG_NONE, &indexBufferDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&indexBufferUpload)));
+	ThrowIfFailed(device->CreateCommittedResource(&uploadHeap, D3D12_HEAP_FLAG_CREATE_NOT_ZEROED, &vertexBufferDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&vertexBufferUpload)));
+	ThrowIfFailed(device->CreateCommittedResource(&uploadHeap, D3D12_HEAP_FLAG_CREATE_NOT_ZEROED, &indexBufferDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&indexBufferUpload)));
 
 	// Map & copy memory to upload heap
 	{
@@ -140,38 +145,51 @@ HRESULT WaveFrontOBJModel::UploadGpuResources(ID3D12Device* device, ID3D12Comman
 		indexBufferUpload->Unmap(0, nullptr);
 	}
 
-    // Populate our command list
-    cmdList->Reset(cmdAlloc, nullptr);
+	// Populate our command list
+	cmdList->Reset(cmdAlloc, nullptr);
 
-	cmdList->CopyResource(m_gpuResources.m_vertexBuffer.Get(), vertexBufferUpload.Get());
-	cmdList->CopyResource(m_gpuResources.m_indexBuffer.Get(), indexBufferUpload.Get());
-
-	D3D12_RESOURCE_BARRIER barriers[] =
+	// Buffers must be initialized only D3D12_RESOURCE_STATE_COMMON, so we make tansitions (D3D12_RESOURCE_STATE_COMMON to D3D12_RESOURCE_STATE_COPY_DEST) before CopyResource.
 	{
-		CD3DX12_RESOURCE_BARRIER::Transition(m_gpuResources.m_vertexBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER),
-		CD3DX12_RESOURCE_BARRIER::Transition(m_gpuResources.m_indexBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER)
-	};
-    cmdList->ResourceBarrier(std::extent_v<decltype(barriers)>, barriers);
+		D3D12_RESOURCE_BARRIER barriers[] =
+		{
+			CD3DX12_RESOURCE_BARRIER::Transition(m_vertexBuffer.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST),
+			CD3DX12_RESOURCE_BARRIER::Transition(m_indexBuffer.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST)
+		};
+		cmdList->ResourceBarrier(std::extent_v<decltype(barriers)>, barriers);
+	}
 
-    ThrowIfFailed(cmdList->Close());
+	cmdList->CopyResource(m_vertexBuffer.Get(), vertexBufferUpload.Get());
+	cmdList->CopyResource(m_indexBuffer.Get(), indexBufferUpload.Get());
 
-    ID3D12CommandList* commandLists[] = { cmdList };
-    cmdQueue->ExecuteCommandLists(1, commandLists);
+	// Change buffers state for rendering.
+	{
+		D3D12_RESOURCE_BARRIER barriers[] =
+		{
+			CD3DX12_RESOURCE_BARRIER::Transition(m_vertexBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_COMMON),
+			CD3DX12_RESOURCE_BARRIER::Transition(m_indexBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_COMMON)
+		};
+		cmdList->ResourceBarrier(std::extent_v<decltype(barriers)>, barriers);
+	}
 
-    // Create our sync fence
-    ComPtr<ID3D12Fence> fence = nullptr;
-    ThrowIfFailed(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)));
+	ThrowIfFailed(cmdList->Close());
+
+	ID3D12CommandList* commandLists[] = { cmdList };
+	cmdQueue->ExecuteCommandLists(1, commandLists);
+
+	// Create our sync fence
+	ComPtr<ID3D12Fence> fence = nullptr;
+	ThrowIfFailed(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)));
 
 	ThrowIfFailed(cmdQueue->Signal(fence.Get(), 1));
 
-    // Wait for GPU
-    if (fence->GetCompletedValue() != 1)
-    {
-        HANDLE event = CreateEventA(nullptr, FALSE, FALSE, nullptr);
-        fence->SetEventOnCompletion(1, event);
-        WaitForSingleObjectEx(event, INFINITE, false);
-        CloseHandle(event);
-    }
+	// Wait for GPU
+	if (fence->GetCompletedValue() != 1)
+	{
+		HANDLE event = CreateEventA(nullptr, FALSE, FALSE, nullptr);
+		fence->SetEventOnCompletion(1, event);
+		WaitForSingleObjectEx(event, INFINITE, false);
+		CloseHandle(event);
+	}
 
-    return S_OK;
+	return S_OK;
 }

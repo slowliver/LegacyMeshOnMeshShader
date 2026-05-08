@@ -81,6 +81,7 @@
     <ClInclude Include="DXSampleHelper.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="LegacyMeshOnMeshShader.h" />
+    <ClInclude Include="Shader\Common.h" />
     <ClInclude Include="WaveFrontOBJModel.h" />
     <ClInclude Include="Model.h" />
     <ClInclude Include="Resource.h" />
@@ -109,27 +110,47 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
-  </ItemGroup>
-  <ItemGroup>
-    <CustomBuild Include="MeshletMS.hlsl">
-      <FileType>Document</FileType>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">dxc.exe -nologo -Tms_6_5 -E"main" -Zi -Qembed_debug -Fo"$(OutDir)%(Filename).cso" "%(FullPath)"</Command>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)%(Filename).cso</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">dxc.exe -nologo -Tms_6_5 -E"main" -Zi -Qembed_debug -Fo"$(OutDir)%(Filename).cso" "%(FullPath)"</Command>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)%(Filename).cso</Outputs>
-    </CustomBuild>
-    <CustomBuild Include="MeshletPS.hlsl">
-      <FileType>Document</FileType>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">dxc.exe -nologo -Tps_6_3 -E"main" -Zi -Qembed_debug -Fo"$(OutDir)%(Filename).cso" "%(FullPath)"</Command>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)%(Filename).cso</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">dxc.exe -nologo -Tps_6_3 -E"main" -Zi -Qembed_debug -Fo"$(OutDir)%(Filename).cso" "%(FullPath)"</Command>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)%(Filename).cso</Outputs>
-    </CustomBuild>
+    <None Include="Shader\Main.hlsli" />
   </ItemGroup>
   <ItemGroup>
     <CopyFileToFolders Include="Bunny.obj">
       <FileType>Document</FileType>
     </CopyFileToFolders>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="Shader\MainMS.hlsl">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">dxc.exe -nologo -HV 2021 -Tms_6_7 -E"%(Filename)" -Zi -Qembed_debug -Fo"$(OutDir)%(Filename).cso" "%(FullPath)"</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)%(Filename).cso</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">dxc.exe -nologo -HV 2021 -Tms_6_7 -E"%(Filename)" -Zi -Qembed_debug -Fo"$(OutDir)%(Filename).cso" "%(FullPath)"</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)%(Filename).cso</Outputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+      </AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+      </AdditionalInputs>
+    </CustomBuild>
+    <CustomBuild Include="Shader\MainPS.hlsl">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">dxc.exe -nologo -HV 2021 -Tps_6_7 -E"%(Filename)" -Zi -Qembed_debug -Fo"$(OutDir)%(Filename).cso" "%(FullPath)"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">dxc.exe -nologo -HV 2021 -Tps_6_7 -E"%(Filename)" -Zi -Qembed_debug -Fo"$(OutDir)%(Filename).cso" "%(FullPath)"</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)%(Filename).cso</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)%(Filename).cso</Outputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+      </AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+      </AdditionalInputs>
+    </CustomBuild>
+    <CustomBuild Include="Shader\MainVS.hlsl">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">dxc.exe -nologo -HV 2021 -Tvs_6_7 -E"%(Filename)" -Zi -Qembed_debug -Fo"$(OutDir)%(Filename).cso" "%(FullPath)"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">dxc.exe -nologo -HV 2021 -Tvs_6_7 -E"%(Filename)" -Zi -Qembed_debug -Fo"$(OutDir)%(Filename).cso" "%(FullPath)"</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)%(Filename).cso</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)%(Filename).cso</Outputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+      </AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+      </AdditionalInputs>
+    </CustomBuild>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

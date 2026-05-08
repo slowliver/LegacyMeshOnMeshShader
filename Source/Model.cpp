@@ -238,7 +238,7 @@ HRESULT Model::LoadFromFile(const wchar_t* filename)
             Accessor& accessor = accessors[meshView.Meshlets];
             BufferView& bufferView = bufferViews[accessor.BufferView];
 
-            mesh.Meshlets = MakeSpan(reinterpret_cast<Meshlet*>(m_buffer.data() + bufferView.Offset), accessor.Count);
+            //mesh.Meshlets = MakeSpan(reinterpret_cast<Meshlet*>(m_buffer.data() + bufferView.Offset), accessor.Count);
         }
 
         // Meshlet Subset data
@@ -270,7 +270,7 @@ HRESULT Model::LoadFromFile(const wchar_t* filename)
             Accessor& accessor = accessors[meshView.CullData];
             BufferView& bufferView = bufferViews[accessor.BufferView];
 
-            mesh.CullingData = MakeSpan(reinterpret_cast<CullData*>(m_buffer.data() + bufferView.Offset), accessor.Count);
+			// mesh.CullingData = MakeSpan(reinterpret_cast<CullData*>(m_buffer.data() + bufferView.Offset), accessor.Count);
         }
      }
 

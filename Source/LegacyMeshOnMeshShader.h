@@ -40,13 +40,6 @@ public:
 private:
 	static const UINT FrameCount = 2;
 
-	_declspec(align(256u)) struct SceneConstantBuffer
-	{
-		XMFLOAT4X4 World;
-		XMFLOAT4X4 WorldView;
-		XMFLOAT4X4 WorldViewProj;
-		uint32_t   DrawMeshlets;
-	};
 
 	// Pipeline objects.
 	CD3DX12_VIEWPORT m_viewport;
@@ -57,16 +50,17 @@ private:
 	ComPtr<ID3D12Resource> m_depthStencil;
 	ComPtr<ID3D12CommandAllocator> m_commandAllocators[FrameCount];
 	ComPtr<ID3D12CommandQueue> m_commandQueue;
-	ComPtr<ID3D12RootSignature> m_rootSignature;
+	ComPtr<ID3D12RootSignature> m_rootSignatureVSPS;
+	ComPtr<ID3D12RootSignature> m_rootSignatureMSPS;
 	ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
 	ComPtr<ID3D12DescriptorHeap> m_dsvHeap;
-	ComPtr<ID3D12PipelineState> m_pipelineState;
+	ComPtr<ID3D12PipelineState> m_pipelineStateVSPS;
+	ComPtr<ID3D12PipelineState> m_pipelineStateMSPS;
 	ComPtr<ID3D12Resource> m_constantBuffer;
 	UINT m_rtvDescriptorSize;
 	UINT m_dsvDescriptorSize;
 
 	ComPtr<ID3D12GraphicsCommandList6> m_commandList;
-	SceneConstantBuffer m_constantBufferData;
 	UINT8* m_cbvDataBegin;
 
 	StepTimer m_timer;
@@ -85,9 +79,4 @@ private:
 	void PopulateCommandList();
 	void MoveToNextFrame();
 	void WaitForGpu();
-
-private:
-	static const wchar_t* c_meshFilename;
-	static const wchar_t* c_meshShaderFilename;
-	static const wchar_t* c_pixelShaderFilename;
 };

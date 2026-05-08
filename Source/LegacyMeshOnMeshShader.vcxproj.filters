@@ -9,6 +9,9 @@
       <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
       <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
     </Filter>
+    <Filter Include="Source\Shader">
+      <UniqueIdentifier>{e95530d8-ae52-4287-9fd7-6f12b0ebb0dc}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DXSample.h">
@@ -46,6 +49,9 @@
     </ClInclude>
     <ClInclude Include="WaveFrontOBJModel.h">
       <Filter>Source</Filter>
+    </ClInclude>
+    <ClInclude Include="Shader\Common.h">
+      <Filter>Source\Shader</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -89,18 +95,24 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
-  </ItemGroup>
-  <ItemGroup>
-    <CustomBuild Include="MeshletPS.hlsl">
-      <Filter>リソース ファイル</Filter>
-    </CustomBuild>
-    <CustomBuild Include="MeshletMS.hlsl">
-      <Filter>リソース ファイル</Filter>
-    </CustomBuild>
+    <None Include="Shader\Main.hlsli">
+      <Filter>Source\Shader</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <CopyFileToFolders Include="bunny.obj">
       <Filter>リソース ファイル</Filter>
     </CopyFileToFolders>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="Shader\MainMS.hlsl">
+      <Filter>Source\Shader</Filter>
+    </CustomBuild>
+    <CustomBuild Include="Shader\MainPS.hlsl">
+      <Filter>Source\Shader</Filter>
+    </CustomBuild>
+    <CustomBuild Include="Shader\MainVS.hlsl">
+      <Filter>Source\Shader</Filter>
+    </CustomBuild>
   </ItemGroup>
 </Project>
