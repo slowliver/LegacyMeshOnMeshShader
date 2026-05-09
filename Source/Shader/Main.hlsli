@@ -25,19 +25,9 @@
 #ifndef MAIN_HLSLI
 #define MAIN_HLSLI
 
-#include "../ShaderCommon.h"
+#include "./../ShaderCommon.h"
 
-#define static_assert(condition) _Static_assert((condition), #condition);
 #define ROOT_SIGNATURE_COMMON "CBV(b0)"
-
-struct SceneData
-{
-	float4x4 m_world;
-	float4x4 m_worldInv;
-	float4x4 m_worldView;
-	float4x4 m_worldViewProjection;
-	uint DrawMeshlets;
-};
 
 ConstantBuffer<SceneData> g_sceneData : register(b0);
 
@@ -46,6 +36,24 @@ struct PixelShaderInput
 	float4 m_position : SV_Position;
 	float3 m_normal : NORMAL0;
 	float2 m_texcoord : TEXCOORD0;
+	float3 m_color : COLOR0;
 };
+
+#if __SHADER_TARGET_STAGE == __SHADER_STAGE_VERTEX
+struct VertexShaderInput
+{
+	float3 m_position : POSITION0;
+	float3 m_normal : NORMAL0;
+	float2 m_texcoord : TEXCOORD0;
+};
+#else
+struct VertexShaderInput
+{
+	float3 m_position;
+	float3 m_normal;
+	float2 m_texcoord;
+};
+#endif
+static_assert(sizeof(VertexShaderInput) % 4 == 0);
 
 #endif // MAIN_HLSLI

@@ -25,6 +25,34 @@
 #ifndef COMMON_H
 #define COMMON_H
 
-#define NUM_THREADS_X (64)
+#define NUM_THREADS_X (128)
+
+#if defined(__hlsl_dx_compiler)
+#define static_assert(condition) _Static_assert((condition), #condition);
+#endif
+
+#if defined(__cplusplus)
+_declspec(align(256))
+#endif
+struct SceneData
+{
+#if defined(__cplusplus)
+	using float4x4 = DirectX::XMFLOAT4X4;
+#endif
+	float4x4 m_worldMatrix;
+	float4x4 m_worldInvMatrix;
+	float4x4 m_worldViewProjectionMatrix;
+};
+
+struct MeshInfo
+{
+#if defined(__cplusplus)
+	using uint = uint32_t;
+#endif
+	uint m_vertexCount;
+	uint m_indexStride; // 2 (means R16_UINT) or 4 (means R32_UINT).
+	uint m_indexCount;
+};
+static_assert(sizeof(MeshInfo) % 4 == 0);
 
 #endif // COMMON_H

@@ -21,15 +21,6 @@ static constexpr const wchar_t* k_pixelShaderFilename = L"MainPS.cso";
 extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 619; }
 extern "C" { __declspec(dllexport) extern const char* D3D12SDKPath = ".\\D3D12\\"; }
 
-struct alignas(256) SceneData
-{
-	XMFLOAT4X4 m_worldMatrix;
-	XMFLOAT4X4 m_worldInvMatrix;
-	XMFLOAT4X4 WorldView;
-	XMFLOAT4X4 WorldViewProj;
-	uint32_t   DrawMeshlets;
-};
-
 D3D12MeshletRender::D3D12MeshletRender(UINT width, UINT height, std::wstring name)
 	: DXSample(width, height, name)
 	, m_viewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height))
@@ -41,8 +32,7 @@ D3D12MeshletRender::D3D12MeshletRender(UINT width, UINT height, std::wstring nam
 	, m_frameCounter(0)
 	, m_fenceEvent{}
 	, m_fenceValues{}
-{
-}
+{}
 
 void D3D12MeshletRender::OnInit()
 {
@@ -362,13 +352,10 @@ void D3D12MeshletRender::OnUpdate()
 	XMMATRIX view = m_camera.GetViewMatrix();
 	XMMATRIX proj = m_camera.GetProjectionMatrix(XM_PI / 3.0f, m_aspectRatio);
 
-	SceneData sceneData = {};
-
+	SceneData sceneData ={};
 	XMStoreFloat4x4(&sceneData.m_worldMatrix, XMMatrixTranspose(world));
 	XMStoreFloat4x4(&sceneData.m_worldInvMatrix, XMMatrixTranspose(worldInv));
-	XMStoreFloat4x4(&sceneData.WorldView, XMMatrixTranspose(world * view));
-	XMStoreFloat4x4(&sceneData.WorldViewProj, XMMatrixTranspose(world * view * proj));
-	sceneData.DrawMeshlets = true;
+	XMStoreFloat4x4(&sceneData.m_worldViewProjectionMatrix, XMMatrixTranspose(world * view * proj));
 
 	memcpy(m_cbvDataBegin + sizeof(sceneData) * m_frameIndex, &sceneData, sizeof(sceneData));
 }
@@ -505,9 +492,13 @@ void D3D12MeshletRender::RenderMeshShaderPass()
 	m_commandList->SetGraphicsRootSignature(m_rootSignatureMSPS.Get());
 	m_commandList->SetGraphicsRootConstantBufferView(0, m_constantBuffer->GetGPUVirtualAddress() + sizeof(SceneData) * m_frameIndex);
 
-	m_commandList->SetGraphicsRoot32BitConstant(1, m_model.GetVertexCount(), 0); // MeshInfo::m_vertexCount
-	m_commandList->SetGraphicsRoot32BitConstant(1, m_model.GetIndexStride(), 1);                                               // MeshInfo::m_indexStride
-	m_commandList->SetGraphicsRoot32BitConstant(1, m_model.GetIndexCount(), 2);                                                // MeshInfo::m_indexCount
+	MeshInfo meshInfo =
+	{
+		m_model.GetVertexCount(),
+		m_model.GetIndexStride(),
+		m_model.GetIndexCount()
+	};
+	m_commandList->SetGraphicsRoot32BitConstants(1, sizeof(MeshInfo) / sizeof(uint32_t), &meshInfo, 0); 
 
 	// Change buffers state for rendering.
 	{
