@@ -50,8 +50,8 @@
     <ClInclude Include="WaveFrontOBJModel.h">
       <Filter>Source</Filter>
     </ClInclude>
-    <ClInclude Include="Shader\Common.h">
-      <Filter>Source\Shader</Filter>
+    <ClInclude Include="ShaderCommon.h">
+      <Filter>Source</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

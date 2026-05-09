@@ -11,7 +11,7 @@
 
 #include "stdafx.h"
 #include "LegacyMeshOnMeshShader.h"
-
+#include "ShaderCommon.h"
 
 static constexpr const wchar_t* k_meshFilename = L"Bunny.obj";
 static constexpr const wchar_t* k_vertexShaderFilename = L"MainVS.cso";
@@ -293,6 +293,7 @@ void D3D12MeshletRender::LoadAssets()
 			psoDesc.pRootSignature = m_rootSignatureMSPS.Get();
 			psoDesc.MS = { meshShader.m_data, meshShader.m_size };
 			psoDesc.PS = { pixelShader.m_data, pixelShader.m_size };
+			psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 			psoDesc.NumRenderTargets = 1;
 			psoDesc.RTVFormats[0] = m_renderTargets[0]->GetDesc().Format;
 			psoDesc.DSVFormat = m_depthStencil->GetDesc().Format;
@@ -399,6 +400,15 @@ void D3D12MeshletRender::OnDestroy()
 
 void D3D12MeshletRender::OnKeyDown(UINT8 key)
 {
+	switch (key)
+	{
+	case 'M':
+		m_useMeshShaderPass = true;
+		break;
+	case 'V':
+		m_useMeshShaderPass = false;
+		break;
+	}
 	m_camera.OnKeyDown(key);
 }
 
@@ -417,18 +427,9 @@ void D3D12MeshletRender::PopulateCommandList()
 	// However, when ExecuteCommandList() is called on a particular command 
 	// list, that command list can then be reset at any time and must be before 
 	// re-recording.
-#if 0
-	ThrowIfFailed(m_commandList->Reset(m_commandAllocators[m_frameIndex].Get(), m_pipelineStateMSPS.Get()));
-#else
-	ThrowIfFailed(m_commandList->Reset(m_commandAllocators[m_frameIndex].Get(), m_pipelineStateVSPS.Get()));
-#endif
+	ThrowIfFailed(m_commandList->Reset(m_commandAllocators[m_frameIndex].Get(), nullptr));
 
 	// Set necessary state.
-#if 0
-	m_commandList->SetGraphicsRootSignature(m_rootSignatureMSPS.Get());
-#else
-	m_commandList->SetGraphicsRootSignature(m_rootSignatureVSPS.Get());
-#endif
 	m_commandList->RSSetViewports(1, &m_viewport);
 	m_commandList->RSSetScissorRects(1, &m_scissorRect);
 
@@ -445,40 +446,16 @@ void D3D12MeshletRender::PopulateCommandList()
 	m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
 	m_commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
-	m_commandList->SetGraphicsRootConstantBufferView(0, m_constantBuffer->GetGPUVirtualAddress() + sizeof(SceneData) * m_frameIndex);
-
-	// Change buffers state for rendering.
-	{
-		D3D12_RESOURCE_BARRIER barriers[] =
-		{
-			CD3DX12_RESOURCE_BARRIER::Transition(m_model.GetVertexBuffer().Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE),
-			CD3DX12_RESOURCE_BARRIER::Transition(m_model.GetIndexBuffer().Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_INDEX_BUFFER | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE)
-		};
-		m_commandList->ResourceBarrier(std::extent_v<decltype(barriers)>, barriers);
-	}
-
-#if 0
-	m_commandList->SetGraphicsRoot32BitConstant(1, mesh.IndexSize, 0);
-	m_commandList->SetGraphicsRootShaderResourceView(2, mesh.VertexResources[0]->GetGPUVirtualAddress());
-	m_commandList->SetGraphicsRootShaderResourceView(3, mesh.MeshletResource->GetGPUVirtualAddress());
-	m_commandList->SetGraphicsRootShaderResourceView(4, mesh.UniqueVertexIndexResource->GetGPUVirtualAddress());
-	m_commandList->SetGraphicsRootShaderResourceView(5, mesh.PrimitiveIndexResource->GetGPUVirtualAddress());
-#endif
-#if 0
-	for (auto& subset : mesh.MeshletSubsets)
-	{
-		m_commandList->SetGraphicsRoot32BitConstant(1, subset.Offset, 1);
-		m_commandList->DispatchMesh(subset.Count, 1, 1);
-	}
-#endif
 	m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-	D3D12_VERTEX_BUFFER_VIEW vertexBufferViews[] = { { m_model.GetVertexBuffer()->GetGPUVirtualAddress(), (UINT)m_model.GetVertexBuffer()->GetDesc().Width, m_model.GetVertexStride() } };
-	m_commandList->IASetVertexBuffers(0, std::extent_v<decltype(vertexBufferViews)>, vertexBufferViews);
-
-	D3D12_INDEX_BUFFER_VIEW indexBufferView = { m_model.GetIndexBuffer()->GetGPUVirtualAddress(), (UINT)m_model.GetIndexBuffer()->GetDesc().Width, m_model.GetIndexBufferFormat() };
-	m_commandList->IASetIndexBuffer(&indexBufferView);
-	m_commandList->DrawIndexedInstanced(m_model.GetIndexCount(), 1, 0, 0, 0);
+	if (m_useMeshShaderPass)
+	{
+		RenderMeshShaderPass();
+	}
+	else
+	{
+		RenderVertexShaderPass();
+	}
 
 	// Indicate that the back buffer will now be used to present.
 	const auto toPresentBarrier = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
@@ -520,4 +497,55 @@ void D3D12MeshletRender::MoveToNextFrame()
 
 	// Set the fence value for the next frame.
 	m_fenceValues[m_frameIndex] = currentFenceValue + 1;
+}
+
+void D3D12MeshletRender::RenderMeshShaderPass()
+{
+	m_commandList->SetPipelineState(m_pipelineStateMSPS.Get());
+	m_commandList->SetGraphicsRootSignature(m_rootSignatureMSPS.Get());
+	m_commandList->SetGraphicsRootConstantBufferView(0, m_constantBuffer->GetGPUVirtualAddress() + sizeof(SceneData) * m_frameIndex);
+
+	m_commandList->SetGraphicsRoot32BitConstant(1, m_model.GetVertexCount(), 0); // MeshInfo::m_vertexCount
+	m_commandList->SetGraphicsRoot32BitConstant(1, m_model.GetIndexStride(), 1);                                               // MeshInfo::m_indexStride
+	m_commandList->SetGraphicsRoot32BitConstant(1, m_model.GetIndexCount(), 2);                                                // MeshInfo::m_indexCount
+
+	// Change buffers state for rendering.
+	{
+		D3D12_RESOURCE_BARRIER barriers[] =
+		{
+			CD3DX12_RESOURCE_BARRIER::Transition(m_model.GetVertexBuffer().Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE),
+			CD3DX12_RESOURCE_BARRIER::Transition(m_model.GetIndexBuffer().Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE)
+		};
+		m_commandList->ResourceBarrier(std::extent_v<decltype(barriers)>, barriers);
+	}
+
+	m_commandList->SetGraphicsRootShaderResourceView(2, m_model.GetVertexBuffer()->GetGPUVirtualAddress());
+	m_commandList->SetGraphicsRootShaderResourceView(3, m_model.GetIndexBuffer()->GetGPUVirtualAddress());
+
+	m_commandList->DispatchMesh((std::max(m_model.GetVertexCount(), m_model.GetIndexCount()) + (NUM_THREADS_X - 1)) / NUM_THREADS_X, 1, 1);
+}
+
+void D3D12MeshletRender::RenderVertexShaderPass()
+{
+	m_commandList->SetPipelineState(m_pipelineStateVSPS.Get());
+	m_commandList->SetGraphicsRootSignature(m_rootSignatureVSPS.Get());
+	m_commandList->SetGraphicsRootConstantBufferView(0, m_constantBuffer->GetGPUVirtualAddress() + sizeof(SceneData) * m_frameIndex);
+
+	// Change buffers state for rendering.
+	{
+		D3D12_RESOURCE_BARRIER barriers[] =
+		{
+			CD3DX12_RESOURCE_BARRIER::Transition(m_model.GetVertexBuffer().Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER),
+			CD3DX12_RESOURCE_BARRIER::Transition(m_model.GetIndexBuffer().Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_INDEX_BUFFER)
+		};
+		m_commandList->ResourceBarrier(std::extent_v<decltype(barriers)>, barriers);
+	}
+
+	D3D12_VERTEX_BUFFER_VIEW vertexBufferViews[] = { { m_model.GetVertexBuffer()->GetGPUVirtualAddress(), (UINT)m_model.GetVertexBuffer()->GetDesc().Width, m_model.GetVertexStride() } };
+	m_commandList->IASetVertexBuffers(0, std::extent_v<decltype(vertexBufferViews)>, vertexBufferViews);
+
+	D3D12_INDEX_BUFFER_VIEW indexBufferView = { m_model.GetIndexBuffer()->GetGPUVirtualAddress(), (UINT)m_model.GetIndexBuffer()->GetDesc().Width, m_model.GetIndexBufferFormat() };
+	m_commandList->IASetIndexBuffer(&indexBufferView);
+
+	m_commandList->DrawIndexedInstanced(m_model.GetIndexCount(), 1, 0, 0, 0);
 }

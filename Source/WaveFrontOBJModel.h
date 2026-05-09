@@ -21,9 +21,12 @@ public:
 	HRESULT LoadFromFile(const wchar_t* filename);
 	HRESULT UploadGPUResources(ID3D12Device* device, ID3D12CommandQueue* cmdQueue, ID3D12CommandAllocator* cmdAlloc, ID3D12GraphicsCommandList* cmdList);
 
-	constexpr uint32_t GetVertexStride() const { return sizeof(WaveFrontReaderOBJReader::Vertex); }
-	constexpr D3D12_INPUT_LAYOUT_DESC GetInputLayout() const { return { k_inputElements, std::extent_v<decltype(k_inputElements)> }; }
+	D3D12_INPUT_LAYOUT_DESC GetInputLayout() const { return { k_inputElements, std::extent_v<decltype(k_inputElements)> }; }
 
+	uint32_t GetVertexStride() const { return sizeof(WaveFrontReaderOBJReader::Vertex); }
+	uint32_t GetVertexCount() const { return m_vertexCount; }
+
+	uint32_t GetIndexStride() const { return (m_indexBufferFormat == DXGI_FORMAT_R32_UINT) ? 4 : (m_indexBufferFormat == DXGI_FORMAT_R16_UINT) ? 2 : 0; }
 	uint32_t GetIndexCount() const { return m_indexCount; }
 	DXGI_FORMAT GetIndexBufferFormat() const { return m_indexBufferFormat; }
 

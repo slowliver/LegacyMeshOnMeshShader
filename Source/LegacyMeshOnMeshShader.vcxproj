@@ -81,7 +81,7 @@
     <ClInclude Include="DXSampleHelper.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="LegacyMeshOnMeshShader.h" />
-    <ClInclude Include="Shader\Common.h" />
+    <ClInclude Include="ShaderCommon.h" />
     <ClInclude Include="WaveFrontOBJModel.h" />
     <ClInclude Include="Model.h" />
     <ClInclude Include="Resource.h" />
@@ -120,9 +120,9 @@
   <ItemGroup>
     <CustomBuild Include="Shader\MainMS.hlsl">
       <FileType>Document</FileType>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">dxc.exe -nologo -HV 2021 -Tms_6_7 -E"%(Filename)" -Zi -Qembed_debug -Fo"$(OutDir)%(Filename).cso" "%(FullPath)"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">dxc.exe -nologo -HV 2021 -Tms_6_7 -E"%(Filename)" -Zi -Qembed_debug -Od -Fo"$(OutDir)%(Filename).cso" "%(FullPath)"</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)%(Filename).cso</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">dxc.exe -nologo -HV 2021 -Tms_6_7 -E"%(Filename)" -Zi -Qembed_debug -Fo"$(OutDir)%(Filename).cso" "%(FullPath)"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">dxc.exe -nologo -HV 2021 -Tms_6_7 -E"%(Filename)" -Zi -Qembed_debug -Od -Fo"$(OutDir)%(Filename).cso" "%(FullPath)"</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)%(Filename).cso</Outputs>
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
       </AdditionalInputs>

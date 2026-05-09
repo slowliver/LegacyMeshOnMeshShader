@@ -114,7 +114,7 @@ HRESULT WaveFrontOBJModel::LoadFromFile(const wchar_t* filename)
 HRESULT WaveFrontOBJModel::UploadGPUResources(ID3D12Device* device, ID3D12CommandQueue* cmdQueue, ID3D12CommandAllocator* cmdAlloc, ID3D12GraphicsCommandList* cmdList)
 {
 	const auto vertexBufferSize = m_vertexCount * sizeof(WaveFrontReaderOBJReader::Vertex);
-	const auto indexBufferSize = m_indexCount * (m_indexBufferFormat == DXGI_FORMAT_R16_UINT ? sizeof(uint16_t) : sizeof(uint32_t));
+	const auto indexBufferSize = m_indexCount * GetIndexStride();
 	auto vertexBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(vertexBufferSize);
 	auto indexBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(indexBufferSize);
 
@@ -161,6 +161,7 @@ HRESULT WaveFrontOBJModel::UploadGPUResources(ID3D12Device* device, ID3D12Comman
 	cmdList->CopyResource(m_vertexBuffer.Get(), vertexBufferUpload.Get());
 	cmdList->CopyResource(m_indexBuffer.Get(), indexBufferUpload.Get());
 
+#if 0
 	// Change buffers state for rendering.
 	{
 		D3D12_RESOURCE_BARRIER barriers[] =
@@ -170,6 +171,7 @@ HRESULT WaveFrontOBJModel::UploadGPUResources(ID3D12Device* device, ID3D12Comman
 		};
 		cmdList->ResourceBarrier(std::extent_v<decltype(barriers)>, barriers);
 	}
+#endif
 
 	ThrowIfFailed(cmdList->Close());
 

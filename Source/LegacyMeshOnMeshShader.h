@@ -40,6 +40,7 @@ public:
 private:
 	static const UINT FrameCount = 2;
 
+	bool m_useMeshShaderPass = true;
 
 	// Pipeline objects.
 	CD3DX12_VIEWPORT m_viewport;
@@ -79,4 +80,7 @@ private:
 	void PopulateCommandList();
 	void MoveToNextFrame();
 	void WaitForGpu();
+
+	void RenderMeshShaderPass();
+	void RenderVertexShaderPass();
 };

@@ -22,30 +22,9 @@
 // SOFTWARE.
 // --------------------------------------------------------------------------------
 
-#ifndef MAIN_HLSLI
-#define MAIN_HLSLI
+#ifndef COMMON_H
+#define COMMON_H
 
-#include "../ShaderCommon.h"
+#define NUM_THREADS_X (64)
 
-#define static_assert(condition) _Static_assert((condition), #condition);
-#define ROOT_SIGNATURE_COMMON "CBV(b0)"
-
-struct SceneData
-{
-	float4x4 m_world;
-	float4x4 m_worldInv;
-	float4x4 m_worldView;
-	float4x4 m_worldViewProjection;
-	uint DrawMeshlets;
-};
-
-ConstantBuffer<SceneData> g_sceneData : register(b0);
-
-struct PixelShaderInput
-{
-	float4 m_position : SV_Position;
-	float3 m_normal : NORMAL0;
-	float2 m_texcoord : TEXCOORD0;
-};
-
-#endif // MAIN_HLSLI
+#endif // COMMON_H
