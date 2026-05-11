@@ -33,47 +33,57 @@ ConstantBuffer<MeshInfo> g_meshInfo : register(b1);
 ByteAddressBuffer g_vertexBuffer : register(t0);
 ByteAddressBuffer g_indexBuffer : register(t1);
 
-static const uint k_vertexCount = NUM_THREADS_X / 3 * 3;
-static const uint k_primitiveCount = k_vertexCount / 3;
+// Get the vertex input from a primitive index.
+uint GetIndex(uint primitiveIndex)
+{
+	uint vertexIndex = 0;
+	if (g_meshInfo.m_indexStride == 2)
+	{
+		const uint2 indexRaw = g_indexBuffer.Load((primitiveIndex * 2 / 4) * 4);
+		const uint bitOffset = (primitiveIndex & 0x1) * 16;
+		vertexIndex = (indexRaw.x >> bitOffset) & 0xFFFF;
+	}
+	else // if (g_meshInfo.m_indexStride == 4)
+	{
+		vertexIndex = g_indexBuffer.Load(primitiveIndex * 4);
+	}
+	return vertexIndex;
+}
 
-static_assert(k_vertexCount % 3 == 0 && k_vertexCount > 0);
-static_assert(k_primitiveCount % 3 == 0 && k_primitiveCount > 0);
+// Get the vertex from a vertex index.
+VertexShaderInput GetVertex(uint vertexIndex)
+{
+	VertexShaderInput vertexInput = (VertexShaderInput)0;
+	return g_vertexBuffer.Load<VertexShaderInput>(vertexIndex * sizeof(VertexShaderInput));
+}
 
 [RootSignature(ROOT_SIGNATURE_COMMON ROOT_SIGNATURE_MS)]
-[NumThreads(NUM_THREADS_X, 2, 1)]
+[NumThreads(NUM_THREADS, 1, 1)]
 [OutputTopology("triangle")]
-void MainMS(uint gtid : SV_GroupThreadID, uint gid : SV_GroupID, out indices uint3 tris[k_primitiveCount], out vertices PixelShaderInput verts[k_vertexCount])
+void MainMS
+(
+	uint gtid : SV_GroupThreadID,
+	uint gid : SV_GroupID,
+	out indices uint3 tris[NUM_VERTEX_COUNT_PER_THREAD_GROUP / 3],
+	out vertices PixelShaderInput verts[NUM_VERTEX_COUNT_PER_THREAD_GROUP]
+)
 {
-	SetMeshOutputCounts(k_vertexCount, k_primitiveCount);
-	 
-	if (gtid < k_vertexCount)
+	const uint maxVertexCount = max(0, min(NUM_VERTEX_COUNT_PER_THREAD_GROUP, g_meshInfo.m_indexCount - gid * NUM_VERTEX_COUNT_PER_THREAD_GROUP));
+	const uint maxPrimitiveCount = maxVertexCount / 3;
+	
+	SetMeshOutputCounts(maxVertexCount, maxPrimitiveCount);
+	
+	if (gtid < maxVertexCount)
 	{
-		const uint primitiveIndex = gid * k_vertexCount + gtid;
-		uint vertexIndex;
-		if (g_meshInfo.m_indexStride == 2)
-		{
-			const uint location = (primitiveIndex * 2 / 4) * 4;
-			const uint2 indexRaw = g_indexBuffer.Load(location);
-			const uint bitOffset = (primitiveIndex & 0x1) * 16;
-			vertexIndex = (indexRaw.x >> bitOffset) & 0xFFFF;
-		}
-		else // if (g_meshInfo.m_indexStride == 4)
-		{
-			const uint location = primitiveIndex * 4;
-			vertexIndex = g_indexBuffer.Load(location);
-		}
-		
-		VertexShaderInput vertexInput = (VertexShaderInput)0;
-		{
-			const uint location = vertexIndex * sizeof(VertexShaderInput);
-			vertexInput = g_vertexBuffer.Load < VertexShaderInput > (location);
-		}
-		verts[gtid].m_position = mul(float4(vertexInput.m_position, 1.0f), g_sceneData.m_worldViewProjectionMatrix);
-		verts[gtid].m_normal = mul(vertexInput.m_normal, (float3x3) transpose(g_sceneData.m_worldInvMatrix));
-		verts[gtid].m_texcoord = vertexInput.m_texcoord;
+		const uint primitiveIndex = gid * NUM_VERTEX_COUNT_PER_THREAD_GROUP + gtid;
+		const uint vertexIndex = GetIndex(primitiveIndex);
+		const VertexShaderInput vertex = GetVertex(vertexIndex);
+		verts[gtid].m_position = mul(float4(vertex.m_position, 1.0f), g_sceneData.m_worldViewProjectionMatrix);
+		verts[gtid].m_normal = mul(vertex.m_normal, (float3x3) transpose(g_sceneData.m_worldInvMatrix));
+		verts[gtid].m_texcoord = vertex.m_texcoord;
 	}
 	
-	if (gtid < k_primitiveCount)
+	if (gtid < maxPrimitiveCount)
 	{
 		const uint primitiveIndexBegin = 3 * gtid;
 		tris[gtid] = uint3(primitiveIndexBegin, primitiveIndexBegin + 1, primitiveIndexBegin + 2);

@@ -513,7 +513,8 @@ void D3D12MeshletRender::RenderMeshShaderPass()
 	m_commandList->SetGraphicsRootShaderResourceView(2, m_model.GetVertexBuffer()->GetGPUVirtualAddress());
 	m_commandList->SetGraphicsRootShaderResourceView(3, m_model.GetIndexBuffer()->GetGPUVirtualAddress());
 
-	m_commandList->DispatchMesh((std::max(m_model.GetVertexCount(), m_model.GetIndexCount()) + (NUM_THREADS_X - 1)) / NUM_THREADS_X, 1, 1);
+	const uint32_t threadGroupCountX = (m_model.GetIndexCount() + (NUM_VERTEX_COUNT_PER_THREAD_GROUP - 1)) / NUM_VERTEX_COUNT_PER_THREAD_GROUP;
+	m_commandList->DispatchMesh(threadGroupCountX, 1, 1);
 }
 
 void D3D12MeshletRender::RenderVertexShaderPass()

@@ -27,8 +27,8 @@ HRESULT WaveFrontOBJModel::LoadFromFile(const wchar_t* filename)
 		return hr;
 	}
 
-	m_vertexCount = mesh->vertices.size();
-	m_indexCount = mesh->indices.size();
+	m_vertexCount = static_cast<uint32_t>(mesh->vertices.size());
+	m_indexCount = static_cast<uint32_t>(mesh->indices.size());
 
 	assert(m_indexCount % 3 == 0);
 

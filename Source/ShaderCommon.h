@@ -25,11 +25,13 @@
 #ifndef COMMON_H
 #define COMMON_H
 
-#define NUM_THREADS_X (128)
-
 #if defined(__hlsl_dx_compiler)
 #define static_assert(condition) _Static_assert((condition), #condition);
 #endif
+
+#define NUM_THREADS (128)
+#define NUM_VERTEX_COUNT_PER_THREAD_GROUP ((NUM_THREADS / 3) * 3)
+static_assert(NUM_VERTEX_COUNT_PER_THREAD_GROUP % 3 == 0 && NUM_VERTEX_COUNT_PER_THREAD_GROUP / 3 > 0);
 
 #if defined(__cplusplus)
 _declspec(align(256))
