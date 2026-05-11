@@ -205,7 +205,7 @@ void D3D12MeshletRender::LoadPipeline()
 
 	// Create the constant buffer.
 	{
-		const UINT64 constantBufferSize = sizeof(SceneData) * FrameCount;
+		const UINT64 constantBufferSize = sizeof(Shader::SceneData) * FrameCount;
 
 		const CD3DX12_HEAP_PROPERTIES constantBufferHeapProps(D3D12_HEAP_TYPE_UPLOAD);
 		const CD3DX12_RESOURCE_DESC constantBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(constantBufferSize);
@@ -352,7 +352,7 @@ void D3D12MeshletRender::OnUpdate()
 	XMMATRIX view = m_camera.GetViewMatrix();
 	XMMATRIX proj = m_camera.GetProjectionMatrix(XM_PI / 3.0f, m_aspectRatio);
 
-	SceneData sceneData ={};
+	Shader::SceneData sceneData ={};
 	XMStoreFloat4x4(&sceneData.m_worldMatrix, XMMatrixTranspose(world));
 	XMStoreFloat4x4(&sceneData.m_worldInvMatrix, XMMatrixTranspose(worldInv));
 	XMStoreFloat4x4(&sceneData.m_worldViewProjectionMatrix, XMMatrixTranspose(world * view * proj));
@@ -490,15 +490,15 @@ void D3D12MeshletRender::RenderMeshShaderPass()
 {
 	m_commandList->SetPipelineState(m_pipelineStateMSPS.Get());
 	m_commandList->SetGraphicsRootSignature(m_rootSignatureMSPS.Get());
-	m_commandList->SetGraphicsRootConstantBufferView(0, m_constantBuffer->GetGPUVirtualAddress() + sizeof(SceneData) * m_frameIndex);
+	m_commandList->SetGraphicsRootConstantBufferView(0, m_constantBuffer->GetGPUVirtualAddress() + sizeof(Shader::SceneData) * m_frameIndex);
 
-	MeshInfo meshInfo =
+	Shader::MeshInfo meshInfo =
 	{
 		m_model.GetVertexCount(),
 		m_model.GetIndexStride(),
 		m_model.GetIndexCount()
 	};
-	m_commandList->SetGraphicsRoot32BitConstants(1, sizeof(MeshInfo) / sizeof(uint32_t), &meshInfo, 0); 
+	m_commandList->SetGraphicsRoot32BitConstants(1, sizeof(Shader::MeshInfo) / sizeof(uint32_t), &meshInfo, 0); 
 
 	// Change buffers state for rendering.
 	{
@@ -513,7 +513,9 @@ void D3D12MeshletRender::RenderMeshShaderPass()
 	m_commandList->SetGraphicsRootShaderResourceView(2, m_model.GetVertexBuffer()->GetGPUVirtualAddress());
 	m_commandList->SetGraphicsRootShaderResourceView(3, m_model.GetIndexBuffer()->GetGPUVirtualAddress());
 
-	const uint32_t threadGroupCountX = (m_model.GetIndexCount() + (NUM_VERTEX_COUNT_PER_THREAD_GROUP - 1)) / NUM_VERTEX_COUNT_PER_THREAD_GROUP;
+	const uint32_t instanceCount = 32;
+
+	const uint32_t threadGroupCountX = (m_model.GetIndexCount() + (NUM_VERTEX_COUNT_PER_THREAD_GROUP - 1)) / NUM_VERTEX_COUNT_PER_THREAD_GROUP * instanceCount;
 	m_commandList->DispatchMesh(threadGroupCountX, 1, 1);
 }
 
@@ -521,7 +523,7 @@ void D3D12MeshletRender::RenderVertexShaderPass()
 {
 	m_commandList->SetPipelineState(m_pipelineStateVSPS.Get());
 	m_commandList->SetGraphicsRootSignature(m_rootSignatureVSPS.Get());
-	m_commandList->SetGraphicsRootConstantBufferView(0, m_constantBuffer->GetGPUVirtualAddress() + sizeof(SceneData) * m_frameIndex);
+	m_commandList->SetGraphicsRootConstantBufferView(0, m_constantBuffer->GetGPUVirtualAddress() + sizeof(Shader::SceneData) * m_frameIndex);
 
 	// Change buffers state for rendering.
 	{

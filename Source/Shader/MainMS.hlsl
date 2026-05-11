@@ -68,17 +68,20 @@ void MainMS
 	out vertices PixelShaderInput verts[NUM_VERTEX_COUNT_PER_THREAD_GROUP]
 )
 {
-	const uint maxVertexCount = max(0, min(NUM_VERTEX_COUNT_PER_THREAD_GROUP, g_meshInfo.m_indexCount - gid * NUM_VERTEX_COUNT_PER_THREAD_GROUP));
+	const uint threadGroupCount = GetThreadGroupCount(g_meshInfo.m_indexCount);
+	const uint instanceID = gid / threadGroupCount;
+	
+	const uint maxVertexCount = max(0, min(NUM_VERTEX_COUNT_PER_THREAD_GROUP, g_meshInfo.m_indexCount - (gid % threadGroupCount) * NUM_VERTEX_COUNT_PER_THREAD_GROUP));
 	const uint maxPrimitiveCount = maxVertexCount / 3;
 	
 	SetMeshOutputCounts(maxVertexCount, maxPrimitiveCount);
 	
 	if (gtid < maxVertexCount)
 	{
-		const uint primitiveIndex = gid * NUM_VERTEX_COUNT_PER_THREAD_GROUP + gtid;
+		const uint primitiveIndex = (gid % threadGroupCount) * NUM_VERTEX_COUNT_PER_THREAD_GROUP + gtid;
 		const uint vertexIndex = GetIndex(primitiveIndex);
 		const VertexShaderInput vertex = GetVertex(vertexIndex);
-		verts[gtid].m_position = mul(float4(vertex.m_position, 1.0f), g_sceneData.m_worldViewProjectionMatrix);
+		verts[gtid].m_position = mul(float4(vertex.m_position * 100 + float3(instanceID * 50.0f, 0, 0), 1.0f), g_sceneData.m_worldViewProjectionMatrix);
 		verts[gtid].m_normal = mul(vertex.m_normal, (float3x3) transpose(g_sceneData.m_worldInvMatrix));
 		verts[gtid].m_texcoord = vertex.m_texcoord;
 	}

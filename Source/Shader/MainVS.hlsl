@@ -24,8 +24,10 @@
 
 #include "Main.hlsli"
 
-[RootSignature(ROOT_SIGNATURE_COMMON ", RootFlags(ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT)")]
-PixelShaderInput MainVS(VertexShaderInput input)
+#define ROOT_SIGNATURE_VS ", RootFlags(ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT)"
+
+[RootSignature(ROOT_SIGNATURE_COMMON ROOT_SIGNATURE_VS)]
+PixelShaderInput MainVS(VertexShaderInput input, uint instanceID : SV_InstanceID)
 {
 	PixelShaderInput output;
 	output.m_position = mul(float4(input.m_position, 1.0f), g_sceneData.m_worldViewProjectionMatrix);
