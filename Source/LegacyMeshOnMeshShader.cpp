@@ -385,7 +385,7 @@ void D3D12MeshletRender::OnUpdate()
 		D3D12_RANGE range = { 0, sizeof(Shader::InstanceData) * m_instanceCount };
 		ThrowIfFailed(m_instanceData->Map(0, &range, reinterpret_cast<void**>(&instanceDataBegin)));
 		memset(instanceDataBegin, 0, sizeof(Shader::InstanceData) * k_maxInstanceCount);
-		uint32_t dimX = (uint32_t)std::ceilf(std::sqrtf(m_instanceCount));
+		uint32_t dimX = (uint32_t)std::sqrtf(m_instanceCount);
 		uint32_t dimY = m_instanceCount / dimX;
 		for (uint32_t i = 0; i < m_instanceCount; ++i)
 		{
@@ -543,8 +543,7 @@ void D3D12MeshletRender::RenderMeshShaderPass()
 	m_commandList->SetGraphicsRootConstantBufferView(0, m_constantBuffer->GetGPUVirtualAddress() + sizeof(Shader::SceneInfo) * m_frameIndex);
 	m_commandList->SetGraphicsRootShaderResourceView(1, m_instanceData->GetGPUVirtualAddress());
 
-	m_commandList->SetGraphicsRoot32BitConstant(2, 0, 0); // Shader::InstanceInfo::m_instanceIDOffset
-	m_commandList->SetGraphicsRoot32BitConstant(2, 0, 1); // Shader::InstanceInfo::m_wholeInstanceCount
+	m_commandList->SetGraphicsRoot32BitConstant(2, m_instanceCount, 1); // Shader::InstanceInfo::m_wholeInstanceCount
 	Shader::MeshInfo meshInfo =
 	{
 		m_model.GetVertexCount(),
@@ -566,8 +565,15 @@ void D3D12MeshletRender::RenderMeshShaderPass()
 	m_commandList->SetGraphicsRootShaderResourceView(4, m_model.GetVertexBuffer()->GetGPUVirtualAddress());
 	m_commandList->SetGraphicsRootShaderResourceView(5, m_model.GetIndexBuffer()->GetGPUVirtualAddress());
 
-	const uint32_t threadGroupCountX = Shader::GetThreadGroupCount(m_model.GetIndexCount()) * m_instanceCount;
-	m_commandList->DispatchMesh(threadGroupCountX, 1, 1);
+	const uint32_t threadGroupCountPerInstance = Shader::GetThreadGroupCount(m_model.GetIndexCount());
+	const uint32_t dispatchableInstanceCountOnce = m_max1DDispatchMeshSize / threadGroupCountPerInstance;
+	for (uint32_t i = 0; i < (m_instanceCount + (dispatchableInstanceCountOnce - 1)) / dispatchableInstanceCountOnce; ++i)
+	{
+		const uint32_t instanceIDOffset = i * dispatchableInstanceCountOnce;
+		const uint32_t threadGroupCount = threadGroupCountPerInstance * std::min<uint32_t>(dispatchableInstanceCountOnce, std::max<uint32_t>(0, m_instanceCount - instanceIDOffset));
+		m_commandList->SetGraphicsRoot32BitConstant(2, instanceIDOffset, 0); // Shader::InstanceInfo::m_instanceIDOffset
+		m_commandList->DispatchMesh(threadGroupCount, 1, 1);
+	}
 }
 
 void D3D12MeshletRender::RenderVertexShaderPass()
@@ -575,6 +581,7 @@ void D3D12MeshletRender::RenderVertexShaderPass()
 	m_commandList->SetPipelineState(m_pipelineStateVSPS.Get());
 	m_commandList->SetGraphicsRootSignature(m_rootSignatureVSPS.Get());
 	m_commandList->SetGraphicsRootConstantBufferView(0, m_constantBuffer->GetGPUVirtualAddress() + sizeof(Shader::SceneInfo) * m_frameIndex);
+	m_commandList->SetGraphicsRootShaderResourceView(1, m_instanceData->GetGPUVirtualAddress());
 
 	// Change buffers state for rendering.
 	{
@@ -592,5 +599,5 @@ void D3D12MeshletRender::RenderVertexShaderPass()
 	D3D12_INDEX_BUFFER_VIEW indexBufferView = { m_model.GetIndexBuffer()->GetGPUVirtualAddress(), (UINT)m_model.GetIndexBuffer()->GetDesc().Width, m_model.GetIndexBufferFormat() };
 	m_commandList->IASetIndexBuffer(&indexBufferView);
 
-	m_commandList->DrawIndexedInstanced(m_model.GetIndexCount(), 1, 0, 0, 0);
+	m_commandList->DrawIndexedInstanced(m_model.GetIndexCount(), m_instanceCount, 0, 0, 0);
 }

@@ -70,7 +70,7 @@ void MainMS
 )
 {
 	const uint threadGroupCount = GetThreadGroupCount(g_meshInfo.m_indexCount);
-	const uint instanceID = gid / threadGroupCount;
+	const uint instanceID = gid / threadGroupCount + g_instanceInfo.m_instanceIDOffset;
 	
 	const uint maxVertexCount = max(0, min(NUM_VERTEX_COUNT_PER_THREAD_GROUP, g_meshInfo.m_indexCount - (gid % threadGroupCount) * NUM_VERTEX_COUNT_PER_THREAD_GROUP));
 	const uint maxPrimitiveCount = maxVertexCount / 3;

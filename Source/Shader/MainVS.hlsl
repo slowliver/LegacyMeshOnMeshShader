@@ -29,8 +29,9 @@
 [RootSignature(ROOT_SIGNATURE_COMMON ROOT_SIGNATURE_VS)]
 PixelShaderInput MainVS(VertexShaderInput input, uint instanceID : SV_InstanceID)
 {
-	PixelShaderInput output;
-	output.m_position = mul(float4(input.m_position, 1.0f), g_sceneInfo.m_worldViewProjectionMatrix);
+	PixelShaderInput output = (PixelShaderInput)0;
+	InstanceData instanceData = g_instanceData.Load<InstanceData>(instanceID * sizeof(InstanceData));
+	output.m_position = mul(float4(input.m_position + instanceData.m_position.xyz, 1.0f), g_sceneInfo.m_worldViewProjectionMatrix);
 	output.m_normal = mul(input.m_normal, (float3x3)transpose(g_sceneInfo.m_worldInvMatrix));
 	output.m_texcoord = input.m_texcoord;
 	return output;
