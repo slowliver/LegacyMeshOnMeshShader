@@ -1,13 +1,26 @@
-﻿//*********************************************************
+﻿// --------------------------------------------------------------------------------
+// MIT License
 //
-// Copyright (c) Microsoft. All rights reserved.
-// This code is licensed under the MIT License (MIT).
-// THIS CODE IS PROVIDED *AS IS* WITHOUT WARRANTY OF
-// ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING ANY
-// IMPLIED WARRANTIES OF FITNESS FOR A PARTICULAR
-// PURPOSE, MERCHANTABILITY, OR NON-INFRINGEMENT.
+// Copyright (c) 2026 slowliver All rights reserved.
 //
-//*********************************************************
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files(the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and /or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions :
+// 
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+// 
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+// --------------------------------------------------------------------------------
 
 #include "stdafx.h"
 #include "LegacyMeshOnMeshShader.h"
@@ -21,7 +34,7 @@ static constexpr const wchar_t* k_pixelShaderFilename = L"MainPS.cso";
 extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 619; }
 extern "C" { __declspec(dllexport) extern const char* D3D12SDKPath = ".\\D3D12\\"; }
 
-D3D12MeshletRender::D3D12MeshletRender(UINT width, UINT height, std::wstring name)
+LegacyMeshOnMeshShader::LegacyMeshOnMeshShader(UINT width, UINT height, std::wstring name)
 	: DXSample(width, height, name)
 	, m_viewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height))
 	, m_scissorRect(0, 0, static_cast<LONG>(width), static_cast<LONG>(height))
@@ -34,8 +47,17 @@ D3D12MeshletRender::D3D12MeshletRender(UINT width, UINT height, std::wstring nam
 	, m_fenceValues{}
 {}
 
-void D3D12MeshletRender::OnInit()
+void LegacyMeshOnMeshShader::OnInit()
 {
+	wchar_t modulePath[MAX_PATH];
+	if (!::GetModuleFileNameW(nullptr, modulePath, std::extent_v<decltype(modulePath)>))
+	{
+		throw HrException(E_FAIL);
+	}
+
+	std::wstring workingDirectory = std::filesystem::path(modulePath).parent_path().wstring();
+	::SetCurrentDirectoryW(workingDirectory.c_str());
+
 	m_camera.Init({ 0, 75, 150 });
 	m_camera.SetMoveSpeed(150.0f);
 
@@ -44,7 +66,7 @@ void D3D12MeshletRender::OnInit()
 }
 
 // Load the rendering pipeline dependencies.
-void D3D12MeshletRender::LoadPipeline()
+void LegacyMeshOnMeshShader::LoadPipeline()
 {
 	UINT dxgiFactoryFlags = 0;
 
@@ -114,8 +136,6 @@ void D3D12MeshletRender::LoadPipeline()
 			m_max1DDispatchMeshSize = std::max<uint32_t>(D3D12_CS_DISPATCH_MAX_THREAD_GROUPS_PER_DIMENSION, features.Max1DDispatchMeshSize);
 		}
 	}
-
-
 
 	// Describe and create the command queue.
 	D3D12_COMMAND_QUEUE_DESC queueDesc = {};
@@ -251,7 +271,7 @@ void D3D12MeshletRender::LoadPipeline()
 }
 
 // Load the sample assets.
-void D3D12MeshletRender::LoadAssets()
+void LegacyMeshOnMeshShader::LoadAssets()
 {
 	// Create the pipeline state, which includes compiling and loading shaders.
 	{
@@ -330,8 +350,8 @@ void D3D12MeshletRender::LoadAssets()
 	// to record yet. The main loop expects it to be closed, so close it now.
 	ThrowIfFailed(m_commandList->Close());
 
-	m_model.LoadFromFile(k_meshFilename);
-	m_model.UploadGPUResources(m_device.Get(), m_commandQueue.Get(), m_commandAllocators[m_frameIndex].Get(), m_commandList.Get());
+	ThrowIfFailed(m_model.LoadFromFile(k_meshFilename));
+	ThrowIfFailed(m_model.UploadGPUResources(m_device.Get(), m_commandQueue.Get(), m_commandAllocators[m_frameIndex].Get(), m_commandList.Get()));
 
 	// Create synchronization objects and wait until assets have been uploaded to the GPU.
 	{
@@ -353,7 +373,7 @@ void D3D12MeshletRender::LoadAssets()
 }
 
 // Update frame-based values.
-void D3D12MeshletRender::OnUpdate()
+void LegacyMeshOnMeshShader::OnUpdate()
 {
 	m_timer.Tick(NULL);
 
@@ -385,7 +405,7 @@ void D3D12MeshletRender::OnUpdate()
 		D3D12_RANGE range = { 0, sizeof(Shader::InstanceData) * m_instanceCount };
 		ThrowIfFailed(m_instanceData->Map(0, &range, reinterpret_cast<void**>(&instanceDataBegin)));
 		memset(instanceDataBegin, 0, sizeof(Shader::InstanceData) * k_maxInstanceCount);
-		uint32_t dimX = (uint32_t)std::sqrtf(m_instanceCount);
+		uint32_t dimX = (uint32_t)std::sqrtf((float)m_instanceCount);
 		uint32_t dimY = m_instanceCount / dimX;
 		for (uint32_t i = 0; i < m_instanceCount; ++i)
 		{
@@ -402,7 +422,7 @@ void D3D12MeshletRender::OnUpdate()
 }
 
 // Render the scene.
-void D3D12MeshletRender::OnRender()
+void LegacyMeshOnMeshShader::OnRender()
 {
 	// Record all the commands we need to render the scene into the command list.
 	PopulateCommandList();
@@ -417,7 +437,7 @@ void D3D12MeshletRender::OnRender()
 	MoveToNextFrame();
 }
 
-void D3D12MeshletRender::OnDestroy()
+void LegacyMeshOnMeshShader::OnDestroy()
 {
 	// Ensure that the GPU is no longer referencing resources that are about to be
 	// cleaned up by the destructor.
@@ -426,7 +446,7 @@ void D3D12MeshletRender::OnDestroy()
 	CloseHandle(m_fenceEvent);
 }
 
-void D3D12MeshletRender::OnKeyDown(UINT8 key)
+void LegacyMeshOnMeshShader::OnKeyDown(UINT8 key)
 {
 	switch (key)
 	{
@@ -449,12 +469,12 @@ void D3D12MeshletRender::OnKeyDown(UINT8 key)
 	m_camera.OnKeyDown(key);
 }
 
-void D3D12MeshletRender::OnKeyUp(UINT8 key)
+void LegacyMeshOnMeshShader::OnKeyUp(UINT8 key)
 {
 	m_camera.OnKeyUp(key);
 }
 
-void D3D12MeshletRender::PopulateCommandList()
+void LegacyMeshOnMeshShader::PopulateCommandList()
 {
 	// Command list allocators can only be reset when the associated 
 	// command lists have finished execution on the GPU; apps should use 
@@ -502,7 +522,7 @@ void D3D12MeshletRender::PopulateCommandList()
 }
 
 // Wait for pending GPU work to complete.
-void D3D12MeshletRender::WaitForGpu()
+void LegacyMeshOnMeshShader::WaitForGpu()
 {
 	// Schedule a Signal command in the queue.
 	ThrowIfFailed(m_commandQueue->Signal(m_fence.Get(), m_fenceValues[m_frameIndex]));
@@ -516,7 +536,7 @@ void D3D12MeshletRender::WaitForGpu()
 }
 
 // Prepare to render the next frame.
-void D3D12MeshletRender::MoveToNextFrame()
+void LegacyMeshOnMeshShader::MoveToNextFrame()
 {
 	// Schedule a Signal command in the queue.
 	const UINT64 currentFenceValue = m_fenceValues[m_frameIndex];
@@ -536,7 +556,7 @@ void D3D12MeshletRender::MoveToNextFrame()
 	m_fenceValues[m_frameIndex] = currentFenceValue + 1;
 }
 
-void D3D12MeshletRender::RenderMeshShaderPass()
+void LegacyMeshOnMeshShader::RenderMeshShaderPass()
 {
 	m_commandList->SetPipelineState(m_pipelineStateMSPS.Get());
 	m_commandList->SetGraphicsRootSignature(m_rootSignatureMSPS.Get());
@@ -574,9 +594,22 @@ void D3D12MeshletRender::RenderMeshShaderPass()
 		m_commandList->SetGraphicsRoot32BitConstant(2, instanceIDOffset, 0); // Shader::InstanceInfo::m_instanceIDOffset
 		m_commandList->DispatchMesh(threadGroupCount, 1, 1);
 	}
+
+#if 0
+	D3D12_COMMAND_SIGNATURE_DESC commandSignatureDesc = {};
+	commandSignatureDesc.
+	m_device->CreateCommandSignature(
+		[in]            const D3D12_COMMAND_SIGNATURE_DESC * pDesc,
+		[in, optional]  ID3D12RootSignature * pRootSignature,
+		REFIID                             riid,
+		[out, optional] void** ppvCommandSignature
+	);
+	ID3D12CommandSignature
+	m_commandList->ExecuteIndirect
+#endif
 }
 
-void D3D12MeshletRender::RenderVertexShaderPass()
+void LegacyMeshOnMeshShader::RenderVertexShaderPass()
 {
 	m_commandList->SetPipelineState(m_pipelineStateVSPS.Get());
 	m_commandList->SetGraphicsRootSignature(m_rootSignatureVSPS.Get());

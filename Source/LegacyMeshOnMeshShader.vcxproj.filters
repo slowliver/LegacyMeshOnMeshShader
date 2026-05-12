@@ -1,10 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Filter Include="リソース ファイル">
-      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
-      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
-    </Filter>
     <Filter Include="Source">
       <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
       <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
@@ -12,39 +8,18 @@
     <Filter Include="Source\Shader">
       <UniqueIdentifier>{e95530d8-ae52-4287-9fd7-6f12b0ebb0dc}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source\Framework">
+      <UniqueIdentifier>{ebae3fd0-5464-466b-8782-e589e9618023}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Asset">
+      <UniqueIdentifier>{3f88d36b-9654-4c55-8f9e-df264ce2a5bb}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="DXSample.h">
-      <Filter>Source</Filter>
-    </ClInclude>
-    <ClInclude Include="DXSampleHelper.h">
-      <Filter>Source</Filter>
-    </ClInclude>
-    <ClInclude Include="Model.h">
-      <Filter>Source</Filter>
-    </ClInclude>
-    <ClInclude Include="SimpleCamera.h">
-      <Filter>Source</Filter>
-    </ClInclude>
-    <ClInclude Include="Span.h">
-      <Filter>Source</Filter>
-    </ClInclude>
     <ClInclude Include="stdafx.h">
       <Filter>Source</Filter>
     </ClInclude>
-    <ClInclude Include="Win32Application.h">
-      <Filter>Source</Filter>
-    </ClInclude>
-    <ClInclude Include="targetver.h">
-      <Filter>Source</Filter>
-    </ClInclude>
-    <ClInclude Include="framework.h">
-      <Filter>Source</Filter>
-    </ClInclude>
     <ClInclude Include="LegacyMeshOnMeshShader.h">
-      <Filter>Source</Filter>
-    </ClInclude>
-    <ClInclude Include="Resource.h">
       <Filter>Source</Filter>
     </ClInclude>
     <ClInclude Include="WaveFrontOBJModel.h">
@@ -53,24 +28,27 @@
     <ClInclude Include="ShaderCommon.h">
       <Filter>Source</Filter>
     </ClInclude>
+    <ClInclude Include="Framework\DXSample.h">
+      <Filter>Source\Framework</Filter>
+    </ClInclude>
+    <ClInclude Include="Framework\DXSampleHelper.h">
+      <Filter>Source\Framework</Filter>
+    </ClInclude>
+    <ClInclude Include="Framework\SimpleCamera.h">
+      <Filter>Source\Framework</Filter>
+    </ClInclude>
+    <ClInclude Include="Framework\StepTimer.h">
+      <Filter>Source\Framework</Filter>
+    </ClInclude>
+    <ClInclude Include="Framework\Win32Application.h">
+      <Filter>Source\Framework</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="LegacyMeshOnMeshShader.cpp">
       <Filter>Source</Filter>
     </ClCompile>
-    <ClCompile Include="DXSample.cpp">
-      <Filter>Source</Filter>
-    </ClCompile>
-    <ClCompile Include="Model.cpp">
-      <Filter>Source</Filter>
-    </ClCompile>
-    <ClCompile Include="SimpleCamera.cpp">
-      <Filter>Source</Filter>
-    </ClCompile>
     <ClCompile Include="stdafx.cpp">
-      <Filter>Source</Filter>
-    </ClCompile>
-    <ClCompile Include="Win32Application.cpp">
       <Filter>Source</Filter>
     </ClCompile>
     <ClCompile Include="Main.cpp">
@@ -79,30 +57,21 @@
     <ClCompile Include="WaveFrontOBJModel.cpp">
       <Filter>Source</Filter>
     </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <ResourceCompile Include="LegacyMeshOnMeshShader.rc">
-      <Filter>リソース ファイル</Filter>
-    </ResourceCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <Image Include="small.ico">
-      <Filter>リソース ファイル</Filter>
-    </Image>
-    <Image Include="LegacyMeshOnMeshShader.ico">
-      <Filter>リソース ファイル</Filter>
-    </Image>
+    <ClCompile Include="Framework\DXSample.cpp">
+      <Filter>Source\Framework</Filter>
+    </ClCompile>
+    <ClCompile Include="Framework\SimpleCamera.cpp">
+      <Filter>Source\Framework</Filter>
+    </ClCompile>
+    <ClCompile Include="Framework\Win32Application.cpp">
+      <Filter>Source\Framework</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
     <None Include="Shader\Main.hlsli">
       <Filter>Source\Shader</Filter>
     </None>
-  </ItemGroup>
-  <ItemGroup>
-    <CopyFileToFolders Include="bunny.obj">
-      <Filter>リソース ファイル</Filter>
-    </CopyFileToFolders>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="Shader\MainMS.hlsl">
@@ -114,5 +83,10 @@
     <CustomBuild Include="Shader\MainVS.hlsl">
       <Filter>Source\Shader</Filter>
     </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <CopyFileToFolders Include="..\Asset\Bunny.obj">
+      <Filter>Asset</Filter>
+    </CopyFileToFolders>
   </ItemGroup>
 </Project>

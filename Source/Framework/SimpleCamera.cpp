@@ -9,7 +9,7 @@
 //
 //*********************************************************
 
-#include "stdafx.h"
+#include "../stdafx.h"
 #include "SimpleCamera.h"
 
 SimpleCamera::SimpleCamera():

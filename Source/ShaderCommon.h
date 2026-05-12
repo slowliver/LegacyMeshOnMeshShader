@@ -22,8 +22,8 @@
 // SOFTWARE.
 // --------------------------------------------------------------------------------
 
-#ifndef COMMON_H
-#define COMMON_H
+#ifndef SHADER_COMMON_H
+#define SHADER_COMMON_H
 
 #if defined(__cplusplus)
 namespace Shader
@@ -86,4 +86,4 @@ inline uint32_t GetThreadGroupCount(uint32_t indexCount)
 } // namespace Shader
 #endif
 
-#endif // COMMON_H
+#endif // SHADER_COMMON_H

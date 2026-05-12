@@ -25,7 +25,7 @@
 #ifndef MAIN_HLSLI
 #define MAIN_HLSLI
 
-#include "./../ShaderCommon.h"
+#include "../ShaderCommon.h"
 
 #define ROOT_SIGNATURE_COMMON "  CBV(b0)" \
                               ", SRV(t0)"
