@@ -27,9 +27,11 @@
 
 #include "./../ShaderCommon.h"
 
-#define ROOT_SIGNATURE_COMMON "CBV(b0)"
+#define ROOT_SIGNATURE_COMMON "  CBV(b0)" \
+                              ", SRV(t0)"
 
-ConstantBuffer<SceneData> g_sceneData : register(b0);
+ConstantBuffer<SceneInfo> g_sceneInfo : register(b0);
+ByteAddressBuffer g_instanceData : register(t0);
 
 struct PixelShaderInput
 {

@@ -24,14 +24,15 @@
 
 #include "Main.hlsli"
 
-#define ROOT_SIGNATURE_MS ", RootConstants(b1, num32bitconstants = 3)"     \
-                          ", SRV(t0, visibility = SHADER_VISIBILITY_MESH)" \
-                          ", SRV(t1, visibility = SHADER_VISIBILITY_MESH)"
+#define ROOT_SIGNATURE_MS ", RootConstants(b1, num32bitconstants = 2)"     \
+                          ", RootConstants(b2, num32bitconstants = 3)"     \
+                          ", SRV(t1, visibility = SHADER_VISIBILITY_MESH)" \
+                          ", SRV(t2, visibility = SHADER_VISIBILITY_MESH)"
 
-ConstantBuffer<MeshInfo> g_meshInfo : register(b1);
-
-ByteAddressBuffer g_vertexBuffer : register(t0);
-ByteAddressBuffer g_indexBuffer : register(t1);
+ConstantBuffer<InstanceInfo> g_instanceInfo : register(b1);
+ConstantBuffer<MeshInfo> g_meshInfo : register(b2);
+ByteAddressBuffer g_vertexBuffer : register(t1);
+ByteAddressBuffer g_indexBuffer : register(t2);
 
 // Get the vertex input from a primitive index.
 uint GetIndex(uint primitiveIndex)
@@ -81,8 +82,9 @@ void MainMS
 		const uint primitiveIndex = (gid % threadGroupCount) * NUM_VERTEX_COUNT_PER_THREAD_GROUP + gtid;
 		const uint vertexIndex = GetIndex(primitiveIndex);
 		const VertexShaderInput vertex = GetVertex(vertexIndex);
-		verts[gtid].m_position = mul(float4(vertex.m_position * 100 + float3(instanceID * 50.0f, 0, 0), 1.0f), g_sceneData.m_worldViewProjectionMatrix);
-		verts[gtid].m_normal = mul(vertex.m_normal, (float3x3) transpose(g_sceneData.m_worldInvMatrix));
+		InstanceData instanceData = g_instanceData.Load<InstanceData>(instanceID * sizeof(InstanceData));
+		verts[gtid].m_position = mul(float4(vertex.m_position + instanceData.m_position.xyz, 1.0f), g_sceneInfo.m_worldViewProjectionMatrix);
+		verts[gtid].m_normal = mul(vertex.m_normal, (float3x3)transpose(g_sceneInfo.m_worldInvMatrix));
 		verts[gtid].m_texcoord = vertex.m_texcoord;
 	}
 	

@@ -39,6 +39,7 @@ public:
 
 private:
 	static const UINT FrameCount = 2;
+	static constexpr uint32_t k_maxInstanceCount = 4096;
 
 	bool m_useMeshShaderPass = true;
 
@@ -58,6 +59,7 @@ private:
 	ComPtr<ID3D12PipelineState> m_pipelineStateVSPS;
 	ComPtr<ID3D12PipelineState> m_pipelineStateMSPS;
 	ComPtr<ID3D12Resource> m_constantBuffer;
+	ComPtr<ID3D12Resource> m_instanceData;
 	UINT m_rtvDescriptorSize;
 	UINT m_dsvDescriptorSize;
 
@@ -67,6 +69,9 @@ private:
 	StepTimer m_timer;
 	SimpleCamera m_camera;
 	WaveFrontOBJModel m_model;
+	uint32_t m_instanceCount = 1;
+	bool m_instanceCountDirty = true;
+	uint32_t m_max1DDispatchMeshSize = D3D12_CS_DISPATCH_MAX_THREAD_GROUPS_PER_DIMENSION;
 
 	// Synchronization objects.
 	UINT m_frameIndex;

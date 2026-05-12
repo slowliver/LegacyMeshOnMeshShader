@@ -41,7 +41,7 @@ static_assert(NUM_VERTEX_COUNT_PER_THREAD_GROUP % 3 == 0 && NUM_VERTEX_COUNT_PER
 #if defined(__cplusplus)
 _declspec(align(256))
 #endif
-struct SceneData
+struct SceneInfo
 {
 #if defined(__cplusplus)
 	using float4x4 = DirectX::XMFLOAT4X4;
@@ -50,7 +50,7 @@ struct SceneData
 	float4x4 m_worldInvMatrix;
 	float4x4 m_worldViewProjectionMatrix;
 };
-
+static_assert(sizeof(SceneInfo) % 16 == 0);
 
 struct MeshInfo
 {
@@ -59,6 +59,23 @@ struct MeshInfo
 	uint32_t m_indexCount;
 };
 static_assert(sizeof(MeshInfo) % 4 == 0);
+
+struct InstanceInfo
+{
+	uint32_t m_instanceIDOffset;
+	uint32_t m_wholeInstanceCount;
+};
+static_assert(sizeof(InstanceInfo) % 4 == 0);
+
+struct InstanceData
+{
+#if defined(__cplusplus)
+	using float4 = DirectX::XMFLOAT4;
+#endif
+	float4 m_position;
+	float4 m_color;
+};
+static_assert(sizeof(InstanceData) % 4 == 0);
 
 inline uint32_t GetThreadGroupCount(uint32_t indexCount)
 {

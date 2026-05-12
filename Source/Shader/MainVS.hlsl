@@ -30,8 +30,8 @@
 PixelShaderInput MainVS(VertexShaderInput input, uint instanceID : SV_InstanceID)
 {
 	PixelShaderInput output;
-	output.m_position = mul(float4(input.m_position, 1.0f), g_sceneData.m_worldViewProjectionMatrix);
-	output.m_normal = mul(input.m_normal, (float3x3)transpose(g_sceneData.m_worldInvMatrix));
+	output.m_position = mul(float4(input.m_position, 1.0f), g_sceneInfo.m_worldViewProjectionMatrix);
+	output.m_normal = mul(input.m_normal, (float3x3)transpose(g_sceneInfo.m_worldInvMatrix));
 	output.m_texcoord = input.m_texcoord;
 	return output;
 }

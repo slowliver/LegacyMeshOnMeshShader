@@ -89,21 +89,33 @@ void D3D12MeshletRender::LoadPipeline()
 		));
 	}
 
-	D3D12_FEATURE_DATA_SHADER_MODEL shaderModel = { D3D_SHADER_MODEL_6_5 };
+	D3D12_FEATURE_DATA_SHADER_MODEL shaderModel = { D3D_SHADER_MODEL_6_7 };
 	if (FAILED(m_device->CheckFeatureSupport(D3D12_FEATURE_SHADER_MODEL, &shaderModel, sizeof(shaderModel)))
-		|| (shaderModel.HighestShaderModel < D3D_SHADER_MODEL_6_5))
+		|| (shaderModel.HighestShaderModel < D3D_SHADER_MODEL_6_7))
 	{
-		OutputDebugStringA("ERROR: Shader Model 6.5 is not supported\n");
-		throw std::exception("Shader Model 6.5 is not supported");
+		OutputDebugStringA("ERROR: Shader Model 6.7 is not supported\n");
+		throw std::exception("Shader Model 6.7 is not supported");
 	}
 
-	D3D12_FEATURE_DATA_D3D12_OPTIONS7 features = {};
-	if (FAILED(m_device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS7, &features, sizeof(features)))
-		|| (features.MeshShaderTier == D3D12_MESH_SHADER_TIER_NOT_SUPPORTED))
 	{
-		OutputDebugStringA("ERROR: Mesh Shaders aren't supported!\n");
-		throw std::exception("Mesh Shaders aren't supported!");
+		D3D12_FEATURE_DATA_D3D12_OPTIONS7 features = {};
+		if (FAILED(m_device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS7, &features, sizeof(features)))
+			|| (features.MeshShaderTier == D3D12_MESH_SHADER_TIER_NOT_SUPPORTED))
+		{
+			OutputDebugStringA("ERROR: Mesh Shaders aren't supported!\n");
+			throw std::exception("Mesh Shaders aren't supported!");
+		}
 	}
+
+	{
+		D3D12_FEATURE_DATA_D3D12_OPTIONS22 features = {};
+		if (SUCCEEDED(m_device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS22, &features, sizeof(features))))
+		{
+			m_max1DDispatchMeshSize = std::max<uint32_t>(D3D12_CS_DISPATCH_MAX_THREAD_GROUPS_PER_DIMENSION, features.Max1DDispatchMeshSize);
+		}
+	}
+
+
 
 	// Describe and create the command queue.
 	D3D12_COMMAND_QUEUE_DESC queueDesc = {};
@@ -205,7 +217,7 @@ void D3D12MeshletRender::LoadPipeline()
 
 	// Create the constant buffer.
 	{
-		const UINT64 constantBufferSize = sizeof(Shader::SceneData) * FrameCount;
+		const UINT64 constantBufferSize = sizeof(Shader::SceneInfo) * FrameCount;
 
 		const CD3DX12_HEAP_PROPERTIES constantBufferHeapProps(D3D12_HEAP_TYPE_UPLOAD);
 		const CD3DX12_RESOURCE_DESC constantBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(constantBufferSize);
@@ -218,15 +230,23 @@ void D3D12MeshletRender::LoadPipeline()
 			nullptr,
 			IID_PPV_ARGS(&m_constantBuffer)));
 
-		// Describe and create a constant buffer view.
-		D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
-		cbvDesc.BufferLocation = m_constantBuffer->GetGPUVirtualAddress();
-		cbvDesc.SizeInBytes = constantBufferSize;
-
 		// Map and initialize the constant buffer. We don't unmap this until the
 		// app closes. Keeping things mapped for the lifetime of the resource is okay.
 		CD3DX12_RANGE readRange(0, 0);        // We do not intend to read from this resource on the CPU.
 		ThrowIfFailed(m_constantBuffer->Map(0, &readRange, reinterpret_cast<void**>(&m_cbvDataBegin)));
+	}
+
+	{
+		const CD3DX12_HEAP_PROPERTIES instanceDataHeapProps(D3D12_HEAP_TYPE_UPLOAD);
+		const CD3DX12_RESOURCE_DESC instanceDataDesc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(Shader::InstanceData) * k_maxInstanceCount);
+
+		ThrowIfFailed(m_device->CreateCommittedResource(
+			&instanceDataHeapProps,
+			D3D12_HEAP_FLAG_CREATE_NOT_ZEROED,
+			&instanceDataDesc,
+			D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+			nullptr,
+			IID_PPV_ARGS(&m_instanceData)));
 	}
 }
 
@@ -352,12 +372,33 @@ void D3D12MeshletRender::OnUpdate()
 	XMMATRIX view = m_camera.GetViewMatrix();
 	XMMATRIX proj = m_camera.GetProjectionMatrix(XM_PI / 3.0f, m_aspectRatio);
 
-	Shader::SceneData sceneData ={};
-	XMStoreFloat4x4(&sceneData.m_worldMatrix, XMMatrixTranspose(world));
-	XMStoreFloat4x4(&sceneData.m_worldInvMatrix, XMMatrixTranspose(worldInv));
-	XMStoreFloat4x4(&sceneData.m_worldViewProjectionMatrix, XMMatrixTranspose(world * view * proj));
+	Shader::SceneInfo sceneInfo ={};
+	XMStoreFloat4x4(&sceneInfo.m_worldMatrix, XMMatrixTranspose(world));
+	XMStoreFloat4x4(&sceneInfo.m_worldInvMatrix, XMMatrixTranspose(worldInv));
+	XMStoreFloat4x4(&sceneInfo.m_worldViewProjectionMatrix, XMMatrixTranspose(world * view * proj));
 
-	memcpy(m_cbvDataBegin + sizeof(sceneData) * m_frameIndex, &sceneData, sizeof(sceneData));
+	memcpy(m_cbvDataBegin + sizeof(sceneInfo) * m_frameIndex, &sceneInfo, sizeof(sceneInfo));
+
+	if (m_instanceCountDirty)
+	{
+		Shader::InstanceData* instanceDataBegin = nullptr;
+		D3D12_RANGE range = { 0, sizeof(Shader::InstanceData) * m_instanceCount };
+		ThrowIfFailed(m_instanceData->Map(0, &range, reinterpret_cast<void**>(&instanceDataBegin)));
+		memset(instanceDataBegin, 0, sizeof(Shader::InstanceData) * k_maxInstanceCount);
+		uint32_t dimX = (uint32_t)std::ceilf(std::sqrtf(m_instanceCount));
+		uint32_t dimY = m_instanceCount / dimX;
+		for (uint32_t i = 0; i < m_instanceCount; ++i)
+		{
+			uint32_t x = i % dimX;
+			uint32_t y = i / dimX;
+			instanceDataBegin[i].m_position.x = x * 4.0f;
+			instanceDataBegin[i].m_position.y = y * 4.0f;
+			instanceDataBegin[i].m_position.z = 0.0f;
+			instanceDataBegin[i].m_position.w = 0.0f;
+		}
+		m_instanceData->Unmap(0, &range);
+		m_instanceCountDirty = false;
+	}
 }
 
 // Render the scene.
@@ -395,7 +436,16 @@ void D3D12MeshletRender::OnKeyDown(UINT8 key)
 	case 'V':
 		m_useMeshShaderPass = false;
 		break;
+	case 'Z':
+		++m_instanceCount;
+		m_instanceCountDirty = true;
+		break;
+	case 'X':
+		--m_instanceCount;
+		m_instanceCountDirty = true;
+		break;
 	}
+	m_instanceCount = std::min<uint32_t>(k_maxInstanceCount, std::max<uint32_t>(1, m_instanceCount));
 	m_camera.OnKeyDown(key);
 }
 
@@ -490,15 +540,18 @@ void D3D12MeshletRender::RenderMeshShaderPass()
 {
 	m_commandList->SetPipelineState(m_pipelineStateMSPS.Get());
 	m_commandList->SetGraphicsRootSignature(m_rootSignatureMSPS.Get());
-	m_commandList->SetGraphicsRootConstantBufferView(0, m_constantBuffer->GetGPUVirtualAddress() + sizeof(Shader::SceneData) * m_frameIndex);
+	m_commandList->SetGraphicsRootConstantBufferView(0, m_constantBuffer->GetGPUVirtualAddress() + sizeof(Shader::SceneInfo) * m_frameIndex);
+	m_commandList->SetGraphicsRootShaderResourceView(1, m_instanceData->GetGPUVirtualAddress());
 
+	m_commandList->SetGraphicsRoot32BitConstant(2, 0, 0); // Shader::InstanceInfo::m_instanceIDOffset
+	m_commandList->SetGraphicsRoot32BitConstant(2, 0, 1); // Shader::InstanceInfo::m_wholeInstanceCount
 	Shader::MeshInfo meshInfo =
 	{
 		m_model.GetVertexCount(),
 		m_model.GetIndexStride(),
 		m_model.GetIndexCount()
 	};
-	m_commandList->SetGraphicsRoot32BitConstants(1, sizeof(Shader::MeshInfo) / sizeof(uint32_t), &meshInfo, 0); 
+	m_commandList->SetGraphicsRoot32BitConstants(3, sizeof(Shader::MeshInfo) / sizeof(uint32_t), &meshInfo, 0); 
 
 	// Change buffers state for rendering.
 	{
@@ -510,12 +563,10 @@ void D3D12MeshletRender::RenderMeshShaderPass()
 		m_commandList->ResourceBarrier(std::extent_v<decltype(barriers)>, barriers);
 	}
 
-	m_commandList->SetGraphicsRootShaderResourceView(2, m_model.GetVertexBuffer()->GetGPUVirtualAddress());
-	m_commandList->SetGraphicsRootShaderResourceView(3, m_model.GetIndexBuffer()->GetGPUVirtualAddress());
+	m_commandList->SetGraphicsRootShaderResourceView(4, m_model.GetVertexBuffer()->GetGPUVirtualAddress());
+	m_commandList->SetGraphicsRootShaderResourceView(5, m_model.GetIndexBuffer()->GetGPUVirtualAddress());
 
-	const uint32_t instanceCount = 32;
-
-	const uint32_t threadGroupCountX = (m_model.GetIndexCount() + (NUM_VERTEX_COUNT_PER_THREAD_GROUP - 1)) / NUM_VERTEX_COUNT_PER_THREAD_GROUP * instanceCount;
+	const uint32_t threadGroupCountX = Shader::GetThreadGroupCount(m_model.GetIndexCount()) * m_instanceCount;
 	m_commandList->DispatchMesh(threadGroupCountX, 1, 1);
 }
 
@@ -523,7 +574,7 @@ void D3D12MeshletRender::RenderVertexShaderPass()
 {
 	m_commandList->SetPipelineState(m_pipelineStateVSPS.Get());
 	m_commandList->SetGraphicsRootSignature(m_rootSignatureVSPS.Get());
-	m_commandList->SetGraphicsRootConstantBufferView(0, m_constantBuffer->GetGPUVirtualAddress() + sizeof(Shader::SceneData) * m_frameIndex);
+	m_commandList->SetGraphicsRootConstantBufferView(0, m_constantBuffer->GetGPUVirtualAddress() + sizeof(Shader::SceneInfo) * m_frameIndex);
 
 	// Change buffers state for rendering.
 	{
