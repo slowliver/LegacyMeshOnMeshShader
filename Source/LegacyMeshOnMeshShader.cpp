@@ -56,7 +56,10 @@ void LegacyMeshOnMeshShader::OnInit()
 	}
 
 	std::wstring workingDirectory = std::filesystem::path(modulePath).parent_path().wstring();
-	::SetCurrentDirectoryW(workingDirectory.c_str());
+	if (!::SetCurrentDirectoryW(workingDirectory.c_str()))
+	{
+		throw HrException(E_FAIL);
+	}
 
 	m_camera.Init({ 0, 75, 150 });
 	m_camera.SetMoveSpeed(150.0f);
