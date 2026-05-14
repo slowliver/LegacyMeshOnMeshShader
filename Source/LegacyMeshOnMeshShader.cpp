@@ -566,10 +566,8 @@ void LegacyMeshOnMeshShader::RenderMeshShaderPass()
 	m_commandList->SetGraphicsRootConstantBufferView(0, m_constantBuffer->GetGPUVirtualAddress() + sizeof(Shader::SceneInfo) * m_frameIndex);
 	m_commandList->SetGraphicsRootShaderResourceView(1, m_instanceData->GetGPUVirtualAddress());
 
-	m_commandList->SetGraphicsRoot32BitConstant(2, m_instanceCount, 1); // Shader::InstanceInfo::m_wholeInstanceCount
 	Shader::MeshInfo meshInfo =
 	{
-		m_model.GetVertexCount(),
 		m_model.GetIndexStride(),
 		m_model.GetIndexCount()
 	};
@@ -595,6 +593,7 @@ void LegacyMeshOnMeshShader::RenderMeshShaderPass()
 		const uint32_t instanceIDOffset = i * dispatchableInstanceCountOnce;
 		const uint32_t threadGroupCount = threadGroupCountPerInstance * std::min<uint32_t>(dispatchableInstanceCountOnce, std::max<uint32_t>(0, m_instanceCount - instanceIDOffset));
 		m_commandList->SetGraphicsRoot32BitConstant(2, instanceIDOffset, 0); // Shader::InstanceInfo::m_instanceIDOffset
+		m_commandList->SetGraphicsRoot32BitConstant(2, i, 1); // Shader::InstanceInfo::m_drawID
 		m_commandList->DispatchMesh(threadGroupCount, 1, 1);
 	}
 

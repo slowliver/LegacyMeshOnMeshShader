@@ -54,7 +54,6 @@ static_assert(sizeof(SceneInfo) % 16 == 0);
 
 struct MeshInfo
 {
-	uint32_t m_vertexCount;
 	uint32_t m_indexStride; // 2 (means R16_UINT) or 4 (means R32_UINT).
 	uint32_t m_indexCount;
 };
@@ -63,7 +62,7 @@ static_assert(sizeof(MeshInfo) % 4 == 0);
 struct InstanceInfo
 {
 	uint32_t m_instanceIDOffset;
-	uint32_t m_wholeInstanceCount;
+	uint32_t m_drawID;
 };
 static_assert(sizeof(InstanceInfo) % 4 == 0);
 
@@ -79,7 +78,7 @@ static_assert(sizeof(InstanceData) % 4 == 0);
 
 inline uint32_t GetThreadGroupCount(uint32_t indexCount)
 {
-	return (indexCount + (NUM_VERTEX_COUNT_PER_THREAD_GROUP - 1)) / NUM_VERTEX_COUNT_PER_THREAD_GROUP;
+	return (uint32_t)((uint64_t)indexCount + (NUM_VERTEX_COUNT_PER_THREAD_GROUP - 1)) / NUM_VERTEX_COUNT_PER_THREAD_GROUP;
 }
 
 #if defined(__cplusplus)
