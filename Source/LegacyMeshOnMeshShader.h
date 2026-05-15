@@ -38,6 +38,10 @@ using namespace DirectX;
 // An example of this can be found in the class method: OnDestroy().
 using Microsoft::WRL::ComPtr;
 
+template <class T>
+requires std::is_enum_v<T>
+constexpr std::underlying_type_t<T> ToUnderlying(T value) noexcept {  return static_cast<std::underlying_type_t<T>>(value); }
+
 class LegacyMeshOnMeshShader : public DXSample
 {
 public:
@@ -54,7 +58,12 @@ private:
 	static const UINT FrameCount = 2;
 	static constexpr uint32_t k_maxInstanceCount = 4096;
 
-	bool m_useMeshShaderPass = true;
+	enum class PrimitivePipelineMode
+	{
+		Vertex,
+		Mesh,
+		Count
+	} m_primitivePipelineMode = PrimitivePipelineMode::Mesh;
 
 	// Pipeline objects.
 	CD3DX12_VIEWPORT m_viewport;
@@ -65,12 +74,10 @@ private:
 	ComPtr<ID3D12Resource> m_depthStencil;
 	ComPtr<ID3D12CommandAllocator> m_commandAllocators[FrameCount];
 	ComPtr<ID3D12CommandQueue> m_commandQueue;
-	ComPtr<ID3D12RootSignature> m_rootSignatureVSPS;
-	ComPtr<ID3D12RootSignature> m_rootSignatureMSPS;
+	ComPtr<ID3D12RootSignature> m_rootSignatures[ToUnderlying(PrimitivePipelineMode::Count)];
 	ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
 	ComPtr<ID3D12DescriptorHeap> m_dsvHeap;
-	ComPtr<ID3D12PipelineState> m_pipelineStateVSPS;
-	ComPtr<ID3D12PipelineState> m_pipelineStateMSPS;
+	ComPtr<ID3D12PipelineState> m_pipelineStates[ToUnderlying(PrimitivePipelineMode::Count)];
 	ComPtr<ID3D12Resource> m_constantBuffer;
 	ComPtr<ID3D12Resource> m_instanceData;
 	UINT m_rtvDescriptorSize;
@@ -82,9 +89,19 @@ private:
 	StepTimer m_timer;
 	SimpleCamera m_camera;
 	WaveFrontOBJModel m_model;
-	uint32_t m_instanceCount = 1;
+
+	uint32_t m_instanceCount = 1024;
 	bool m_instanceCountDirty = true;
 	uint32_t m_max1DDispatchMeshSize = D3D12_CS_DISPATCH_MAX_THREAD_GROUPS_PER_DIMENSION;
+
+	// MDI Resources.
+	struct ExecuteIndirectCommandMSPS
+	{
+		uint32_t m_constantArguments;
+		D3D12_DISPATCH_ARGUMENTS m_dispatchArguments;
+	};
+	ComPtr<ID3D12CommandSignature> m_commandSignatureMSPS;
+	ComPtr<ID3D12Resource> m_commandBuffersMSPS;
 
 	// Synchronization objects.
 	UINT m_frameIndex;

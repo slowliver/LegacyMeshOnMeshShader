@@ -291,14 +291,13 @@ void LegacyMeshOnMeshShader::LoadAssets()
 		ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(k_meshShaderFilename).c_str(), &meshShader.m_data, &meshShader.m_size));
 		ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(k_pixelShaderFilename).c_str(), &pixelShader.m_data, &pixelShader.m_size));
 
-		// Pull root signature from the precompiled mesh shader.
-		ThrowIfFailed(m_device->CreateRootSignature(0, vertexShader.m_data, vertexShader.m_size, IID_PPV_ARGS(&m_rootSignatureVSPS)));
-		ThrowIfFailed(m_device->CreateRootSignature(0, meshShader.m_data, meshShader.m_size, IID_PPV_ARGS(&m_rootSignatureMSPS)));
+		// Pull root signature from the precompiled vertex shader.
+		ThrowIfFailed(m_device->CreateRootSignature(0, vertexShader.m_data, vertexShader.m_size, IID_PPV_ARGS(&m_rootSignatures[ToUnderlying(PrimitivePipelineMode::Vertex)])));
 
 		// Legacy VS-PS Pipeline.
 		{
 			D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
-			psoDesc.pRootSignature = m_rootSignatureVSPS.Get();
+			psoDesc.pRootSignature = m_rootSignatures[ToUnderlying(PrimitivePipelineMode::Vertex)].Get();
 			psoDesc.VS = { vertexShader.m_data, vertexShader.m_size };
 			psoDesc.PS = { pixelShader.m_data, pixelShader.m_size };
 			psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);         // Opaque
@@ -318,12 +317,16 @@ void LegacyMeshOnMeshShader::LoadAssets()
 			streamDesc.pPipelineStateSubobjectStream = &psoStream;
 			streamDesc.SizeInBytes = sizeof(psoStream);
 
-			ThrowIfFailed(m_device->CreatePipelineState(&streamDesc, IID_PPV_ARGS(&m_pipelineStateVSPS)));
+			ThrowIfFailed(m_device->CreatePipelineState(&streamDesc, IID_PPV_ARGS(&m_pipelineStates[ToUnderlying(PrimitivePipelineMode::Vertex)])));
 		}
 
+		// Pull root signature from the precompiled mesh shader.
+		ThrowIfFailed(m_device->CreateRootSignature(0, meshShader.m_data, meshShader.m_size, IID_PPV_ARGS(&m_rootSignatures[ToUnderlying(PrimitivePipelineMode::Mesh)])));
+
+		// New MS-PS Pipeline.
 		{
 			D3DX12_MESH_SHADER_PIPELINE_STATE_DESC psoDesc = {};
-			psoDesc.pRootSignature = m_rootSignatureMSPS.Get();
+			psoDesc.pRootSignature = m_rootSignatures[ToUnderlying(PrimitivePipelineMode::Mesh)].Get();
 			psoDesc.MS = { meshShader.m_data, meshShader.m_size };
 			psoDesc.PS = { pixelShader.m_data, pixelShader.m_size };
 			psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
@@ -342,7 +345,33 @@ void LegacyMeshOnMeshShader::LoadAssets()
 			streamDesc.pPipelineStateSubobjectStream = &psoStream;
 			streamDesc.SizeInBytes = sizeof(psoStream);
 
-			ThrowIfFailed(m_device->CreatePipelineState(&streamDesc, IID_PPV_ARGS(&m_pipelineStateMSPS)));
+			ThrowIfFailed(m_device->CreatePipelineState(&streamDesc, IID_PPV_ARGS(&m_pipelineStates[ToUnderlying(PrimitivePipelineMode::Mesh)])));
+
+			// Create the command signature for mesh shader dispatches.
+			{
+				D3D12_INDIRECT_ARGUMENT_DESC indirectArguments[2] = {};
+				indirectArguments[0].Type = D3D12_INDIRECT_ARGUMENT_TYPE_CONSTANT;
+				indirectArguments[0].Constant.RootParameterIndex = 2;
+				indirectArguments[0].Constant.DestOffsetIn32BitValues = 0;
+				indirectArguments[0].Constant.Num32BitValuesToSet = 1;
+				indirectArguments[1].Type = D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH_MESH;
+
+				D3D12_COMMAND_SIGNATURE_DESC commandSignatureDesc = {};
+				commandSignatureDesc.ByteStride = sizeof(ExecuteIndirectCommandMSPS);
+				commandSignatureDesc.NumArgumentDescs = std::extent_v<decltype(indirectArguments)>;
+				commandSignatureDesc.pArgumentDescs = indirectArguments;
+				ThrowIfFailed(m_device->CreateCommandSignature(&commandSignatureDesc, m_rootSignatures[ToUnderlying(PrimitivePipelineMode::Mesh)].Get(), IID_PPV_ARGS(&m_commandSignatureMSPS)));
+
+				const CD3DX12_HEAP_PROPERTIES commandBufferHeapProps(D3D12_HEAP_TYPE_UPLOAD);
+				D3D12_RESOURCE_DESC commandBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(ExecuteIndirectCommandMSPS) * k_maxInstanceCount);
+				ThrowIfFailed(m_device->CreateCommittedResource(
+					&commandBufferHeapProps,
+					D3D12_HEAP_FLAG_CREATE_NOT_ZEROED,
+					&commandBufferDesc,
+					D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT,
+					nullptr,
+					IID_PPV_ARGS(&m_commandBuffersMSPS)));
+			}
 		}
 	}
 
@@ -404,22 +433,42 @@ void LegacyMeshOnMeshShader::OnUpdate()
 
 	if (m_instanceCountDirty)
 	{
-		Shader::InstanceData* instanceDataBegin = nullptr;
-		D3D12_RANGE range = { 0, sizeof(Shader::InstanceData) * m_instanceCount };
-		ThrowIfFailed(m_instanceData->Map(0, &range, reinterpret_cast<void**>(&instanceDataBegin)));
-		memset(instanceDataBegin, 0, sizeof(Shader::InstanceData) * k_maxInstanceCount);
-		uint32_t dimX = (uint32_t)std::sqrtf((float)m_instanceCount);
-		uint32_t dimY = m_instanceCount / dimX;
-		for (uint32_t i = 0; i < m_instanceCount; ++i)
 		{
-			uint32_t x = i % dimX;
-			uint32_t y = i / dimX;
-			instanceDataBegin[i].m_position.x = x * 4.0f;
-			instanceDataBegin[i].m_position.y = y * 4.0f;
-			instanceDataBegin[i].m_position.z = 0.0f;
-			instanceDataBegin[i].m_position.w = 0.0f;
+			Shader::InstanceData* instanceDataBegin = nullptr;
+			D3D12_RANGE range = { 0, sizeof(Shader::InstanceData) * m_instanceCount };
+			ThrowIfFailed(m_instanceData->Map(0, &range, reinterpret_cast<void**>(&instanceDataBegin)));
+			memset(instanceDataBegin, 0, sizeof(Shader::InstanceData) * k_maxInstanceCount);
+			uint32_t dimX = (uint32_t)std::sqrtf((float)m_instanceCount);
+			uint32_t dimY = m_instanceCount / dimX;
+			for (uint32_t i = 0; i < m_instanceCount; ++i)
+			{
+				uint32_t x = i % dimX;
+				uint32_t y = i / dimX;
+				instanceDataBegin[i].m_position.x = x * 4.0f;
+				instanceDataBegin[i].m_position.y = y * 4.0f;
+				instanceDataBegin[i].m_position.z = 0.0f;
+				instanceDataBegin[i].m_position.w = 0.0f;
+			}
+			m_instanceData->Unmap(0, &range);
 		}
-		m_instanceData->Unmap(0, &range);
+
+		{
+			ExecuteIndirectCommandMSPS* executeIndirectCommand = nullptr;
+			D3D12_RANGE range = { 0, sizeof(ExecuteIndirectCommandMSPS) * m_instanceCount };
+			ThrowIfFailed(m_commandBuffersMSPS->Map(0, &range, reinterpret_cast<void**>(&executeIndirectCommand)));
+			const uint32_t threadGroupCountPerInstance = Shader::GetThreadGroupCount(m_model.GetIndexCount());
+			const uint32_t dispatchableInstanceCountOnce = m_max1DDispatchMeshSize / threadGroupCountPerInstance;
+			assert(dispatchableInstanceCountOnce != 0);
+			for (uint32_t i = 0; i < (m_instanceCount + (dispatchableInstanceCountOnce - 1)) / dispatchableInstanceCountOnce; ++i)
+			{
+				const uint32_t instanceIDOffset = i * dispatchableInstanceCountOnce;
+				const uint32_t threadGroupCount = threadGroupCountPerInstance * std::min<uint32_t>(dispatchableInstanceCountOnce, std::max<uint32_t>(0, m_instanceCount - instanceIDOffset));
+				executeIndirectCommand[i].m_constantArguments = instanceIDOffset;
+				executeIndirectCommand[i].m_dispatchArguments = { threadGroupCount, 1, 1 };
+			}
+			m_commandBuffersMSPS->Unmap(0, &range);
+		}
+
 		m_instanceCountDirty = false;
 	}
 }
@@ -435,7 +484,7 @@ void LegacyMeshOnMeshShader::OnRender()
 	m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 
 	// Present the frame.
-	ThrowIfFailed(m_swapChain->Present(1, 0));
+	ThrowIfFailed(m_swapChain->Present(0, 0));
 
 	MoveToNextFrame();
 }
@@ -454,10 +503,10 @@ void LegacyMeshOnMeshShader::OnKeyDown(UINT8 key)
 	switch (key)
 	{
 	case 'M':
-		m_useMeshShaderPass = true;
+		m_primitivePipelineMode = PrimitivePipelineMode::Mesh;
 		break;
 	case 'V':
-		m_useMeshShaderPass = false;
+		m_primitivePipelineMode = PrimitivePipelineMode::Vertex;
 		break;
 	case 'Z':
 		++m_instanceCount;
@@ -506,15 +555,18 @@ void LegacyMeshOnMeshShader::PopulateCommandList()
 	m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
 	m_commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
-	m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	m_commandList->SetPipelineState(m_pipelineStates[ToUnderlying(m_primitivePipelineMode)].Get());
+	m_commandList->SetGraphicsRootSignature(m_rootSignatures[ToUnderlying(m_primitivePipelineMode)].Get());
+	m_commandList->SetGraphicsRootConstantBufferView(0, m_constantBuffer->GetGPUVirtualAddress() + sizeof(Shader::SceneInfo) * m_frameIndex);
+	m_commandList->SetGraphicsRootShaderResourceView(1, m_instanceData->GetGPUVirtualAddress());
 
-	if (m_useMeshShaderPass)
+	if (m_primitivePipelineMode == PrimitivePipelineMode::Vertex)
 	{
-		RenderMeshShaderPass();
+		RenderVertexShaderPass();
 	}
 	else
 	{
-		RenderVertexShaderPass();
+		RenderMeshShaderPass();
 	}
 
 	// Indicate that the back buffer will now be used to present.
@@ -561,11 +613,6 @@ void LegacyMeshOnMeshShader::MoveToNextFrame()
 
 void LegacyMeshOnMeshShader::RenderMeshShaderPass()
 {
-	m_commandList->SetPipelineState(m_pipelineStateMSPS.Get());
-	m_commandList->SetGraphicsRootSignature(m_rootSignatureMSPS.Get());
-	m_commandList->SetGraphicsRootConstantBufferView(0, m_constantBuffer->GetGPUVirtualAddress() + sizeof(Shader::SceneInfo) * m_frameIndex);
-	m_commandList->SetGraphicsRootShaderResourceView(1, m_instanceData->GetGPUVirtualAddress());
-
 	Shader::MeshInfo meshInfo =
 	{
 		m_model.GetIndexStride(),
@@ -586,8 +633,10 @@ void LegacyMeshOnMeshShader::RenderMeshShaderPass()
 	m_commandList->SetGraphicsRootShaderResourceView(4, m_model.GetVertexBuffer()->GetGPUVirtualAddress());
 	m_commandList->SetGraphicsRootShaderResourceView(5, m_model.GetIndexBuffer()->GetGPUVirtualAddress());
 
+#if 0
 	const uint32_t threadGroupCountPerInstance = Shader::GetThreadGroupCount(m_model.GetIndexCount());
 	const uint32_t dispatchableInstanceCountOnce = m_max1DDispatchMeshSize / threadGroupCountPerInstance;
+	assert(dispatchableInstanceCountOnce != 0);
 	for (uint32_t i = 0; i < (m_instanceCount + (dispatchableInstanceCountOnce - 1)) / dispatchableInstanceCountOnce; ++i)
 	{
 		const uint32_t instanceIDOffset = i * dispatchableInstanceCountOnce;
@@ -596,28 +645,21 @@ void LegacyMeshOnMeshShader::RenderMeshShaderPass()
 		m_commandList->SetGraphicsRoot32BitConstant(2, i, 1); // Shader::InstanceInfo::m_drawID
 		m_commandList->DispatchMesh(threadGroupCount, 1, 1);
 	}
-
-#if 0
-	D3D12_COMMAND_SIGNATURE_DESC commandSignatureDesc = {};
-	commandSignatureDesc.
-	m_device->CreateCommandSignature(
-		[in]            const D3D12_COMMAND_SIGNATURE_DESC * pDesc,
-		[in, optional]  ID3D12RootSignature * pRootSignature,
-		REFIID                             riid,
-		[out, optional] void** ppvCommandSignature
-	);
-	ID3D12CommandSignature
-	m_commandList->ExecuteIndirect
+#else
+	const uint32_t threadGroupCountPerInstance = Shader::GetThreadGroupCount(m_model.GetIndexCount());
+	const uint32_t dispatchableInstanceCountOnce = m_max1DDispatchMeshSize / threadGroupCountPerInstance;
+	m_commandList->ExecuteIndirect(
+		m_commandSignatureMSPS.Get(),
+		(m_instanceCount + (dispatchableInstanceCountOnce - 1)) / dispatchableInstanceCountOnce,
+		m_commandBuffersMSPS.Get(),
+		0,
+		nullptr,
+		0);
 #endif
 }
 
 void LegacyMeshOnMeshShader::RenderVertexShaderPass()
 {
-	m_commandList->SetPipelineState(m_pipelineStateVSPS.Get());
-	m_commandList->SetGraphicsRootSignature(m_rootSignatureVSPS.Get());
-	m_commandList->SetGraphicsRootConstantBufferView(0, m_constantBuffer->GetGPUVirtualAddress() + sizeof(Shader::SceneInfo) * m_frameIndex);
-	m_commandList->SetGraphicsRootShaderResourceView(1, m_instanceData->GetGPUVirtualAddress());
-
 	// Change buffers state for rendering.
 	{
 		D3D12_RESOURCE_BARRIER barriers[] =
@@ -633,6 +675,8 @@ void LegacyMeshOnMeshShader::RenderVertexShaderPass()
 
 	D3D12_INDEX_BUFFER_VIEW indexBufferView = { m_model.GetIndexBuffer()->GetGPUVirtualAddress(), (UINT)m_model.GetIndexBuffer()->GetDesc().Width, m_model.GetIndexBufferFormat() };
 	m_commandList->IASetIndexBuffer(&indexBufferView);
+
+	m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	m_commandList->DrawIndexedInstanced(m_model.GetIndexCount(), m_instanceCount, 0, 0, 0);
 }
