@@ -103,7 +103,7 @@
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
-    <CopyFileToFolders Include="..\Asset\Bunny.obj">
+    <CopyFileToFolders Include="..\Assets\Bunny.obj">
       <FileType>Document</FileType>
     </CopyFileToFolders>
   </ItemGroup>

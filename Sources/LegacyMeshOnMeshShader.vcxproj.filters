@@ -1,92 +1,92 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Filter Include="Source">
+    <Filter Include="Assets">
+      <UniqueIdentifier>{3f88d36b-9654-4c55-8f9e-df264ce2a5bb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Sources">
       <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
       <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
     </Filter>
-    <Filter Include="Source\Shader">
+    <Filter Include="Sources\Shader">
       <UniqueIdentifier>{e95530d8-ae52-4287-9fd7-6f12b0ebb0dc}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source\Framework">
+    <Filter Include="Sources\Framework">
       <UniqueIdentifier>{ebae3fd0-5464-466b-8782-e589e9618023}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Asset">
-      <UniqueIdentifier>{3f88d36b-9654-4c55-8f9e-df264ce2a5bb}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="stdafx.h">
-      <Filter>Source</Filter>
+      <Filter>Sources</Filter>
     </ClInclude>
     <ClInclude Include="LegacyMeshOnMeshShader.h">
-      <Filter>Source</Filter>
+      <Filter>Sources</Filter>
     </ClInclude>
     <ClInclude Include="WaveFrontOBJModel.h">
-      <Filter>Source</Filter>
+      <Filter>Sources</Filter>
     </ClInclude>
     <ClInclude Include="ShaderCommon.h">
-      <Filter>Source</Filter>
+      <Filter>Sources</Filter>
     </ClInclude>
     <ClInclude Include="Framework\DXSample.h">
-      <Filter>Source\Framework</Filter>
+      <Filter>Sources\Framework</Filter>
     </ClInclude>
     <ClInclude Include="Framework\DXSampleHelper.h">
-      <Filter>Source\Framework</Filter>
+      <Filter>Sources\Framework</Filter>
     </ClInclude>
     <ClInclude Include="Framework\SimpleCamera.h">
-      <Filter>Source\Framework</Filter>
+      <Filter>Sources\Framework</Filter>
     </ClInclude>
     <ClInclude Include="Framework\StepTimer.h">
-      <Filter>Source\Framework</Filter>
+      <Filter>Sources\Framework</Filter>
     </ClInclude>
     <ClInclude Include="Framework\Win32Application.h">
-      <Filter>Source\Framework</Filter>
+      <Filter>Sources\Framework</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="LegacyMeshOnMeshShader.cpp">
-      <Filter>Source</Filter>
+      <Filter>Sources</Filter>
     </ClCompile>
     <ClCompile Include="stdafx.cpp">
-      <Filter>Source</Filter>
+      <Filter>Sources</Filter>
     </ClCompile>
     <ClCompile Include="Main.cpp">
-      <Filter>Source</Filter>
+      <Filter>Sources</Filter>
     </ClCompile>
     <ClCompile Include="WaveFrontOBJModel.cpp">
-      <Filter>Source</Filter>
+      <Filter>Sources</Filter>
     </ClCompile>
     <ClCompile Include="Framework\DXSample.cpp">
-      <Filter>Source\Framework</Filter>
+      <Filter>Sources\Framework</Filter>
     </ClCompile>
     <ClCompile Include="Framework\SimpleCamera.cpp">
-      <Filter>Source\Framework</Filter>
+      <Filter>Sources\Framework</Filter>
     </ClCompile>
     <ClCompile Include="Framework\Win32Application.cpp">
-      <Filter>Source\Framework</Filter>
+      <Filter>Sources\Framework</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
     <None Include="Shader\Main.hlsli">
-      <Filter>Source\Shader</Filter>
+      <Filter>Sources\Shader</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="Shader\MainMS.hlsl">
-      <Filter>Source\Shader</Filter>
+      <Filter>Sources\Shader</Filter>
     </CustomBuild>
     <CustomBuild Include="Shader\MainPS.hlsl">
-      <Filter>Source\Shader</Filter>
+      <Filter>Sources\Shader</Filter>
     </CustomBuild>
     <CustomBuild Include="Shader\MainVS.hlsl">
-      <Filter>Source\Shader</Filter>
+      <Filter>Sources\Shader</Filter>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
-    <CopyFileToFolders Include="..\Asset\Bunny.obj">
-      <Filter>Asset</Filter>
+    <CopyFileToFolders Include="..\Assets\Bunny.obj">
+      <Filter>Assets</Filter>
     </CopyFileToFolders>
   </ItemGroup>
 </Project>

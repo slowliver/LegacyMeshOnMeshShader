@@ -429,6 +429,6 @@ FodyWeavers.xsd
 *.msp
 
 # Project Specific
-!/Asset/Bunny.obj
+!/Assets/Bunny.obj
 /[Bb]inary/
 /[Tt]emporary/
